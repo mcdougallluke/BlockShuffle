@@ -1,8 +1,0 @@
-<component name="ArtifactManager">
-  <artifact type="jar" name="block-shuffle:jar">
-    <output-path>$PROJECT_DIR$/../../../test server/plugins</output-path>
-    <root id="archive" name="block-shuffle.jar">
-      <element id="module-output" name="block-shuffle" />
-    </root>
-  </artifact>
-</component>
