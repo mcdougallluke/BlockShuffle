@@ -26,6 +26,8 @@ import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.meta.FireworkMeta;
 import org.jetbrains.annotations.NotNull;
 import org.lukeeirl.blockShuffle.BlockShuffle;
+import org.lukeeirl.blockShuffle.game.PlayerTracker;
+import org.lukeeirl.blockShuffle.game.WorldService;
 
 import java.io.File;
 import java.util.*;
@@ -33,20 +35,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+import static org.lukeeirl.blockShuffle.util.PlayerUtils.*;
+
 public class PlayerListener implements Listener {
     private final World lobbyWorld;
     private final BlockShuffle plugin;
     private final YamlConfiguration settings;
     private final Random random = new Random();
     private final int ticksInRound = 6000; // 6000 ticks = 300 sec == 5 min
-
-    private final Map<UUID, Material> userMaterialMap = new ConcurrentHashMap<>();
-    private final Set<UUID> readyPlayers = Sets.newConcurrentHashSet();
-    private final Set<UUID> completedUsers = Sets.newConcurrentHashSet();
-    private final Set<UUID> usersInGame = Sets.newConcurrentHashSet();
-    private final Set<UUID> spectators = Sets.newConcurrentHashSet();
-    private final Set<UUID> skippedPlayers = Sets.newConcurrentHashSet();
-    private final Set<UUID> disconnectedPlayers = Sets.newConcurrentHashSet();
 
     private List<Material> materials;
     private int bossBarTask;
@@ -56,24 +52,28 @@ public class PlayerListener implements Listener {
     private World currentGameWorld;
     private int roundNumber = 0;
 
-    public PlayerListener(YamlConfiguration settings, BlockShuffle plugin) {
+    private final WorldService worldService = new WorldService();
+    private final PlayerTracker tracker;
+
+    public PlayerListener(YamlConfiguration settings, PlayerTracker playerTracker, BlockShuffle plugin) {
         this.settings = settings;
         this.plugin = plugin;
+        this.tracker = playerTracker;
         this.lobbyWorld = Bukkit.getWorlds().getFirst();
     }
 
     public void startGame() {
-        currentGameWorld = createNewWorld();
+        currentGameWorld = worldService.createNewWorld();
         String materialPath = "materials";
         this.materials = this.settings.getStringList(materialPath).stream().map(Material::getMaterial).collect(Collectors.toList());
         plugin.setRoundWon(false);
 
-        for (UUID uuid : readyPlayers) {
+        for (UUID uuid : tracker.getReadyPlayers()) {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && player.isOnline()) {
                 resetPlayerState(player, GameMode.SURVIVAL);
                 player.teleport(currentGameWorld.getSpawnLocation());
-                this.usersInGame.add(uuid);
+                tracker.addInGame(uuid);
             }
         }
         this.bossBar = this.createBossBar();
@@ -89,7 +89,7 @@ public class PlayerListener implements Listener {
         Bukkit.getScheduler().cancelTask(this.roundEndTask);
         Bukkit.getScheduler().cancelTask(this.bossBarTask);
 
-        for (UUID uuid : usersInGame) {
+        for (UUID uuid : tracker.getUsersInGame()) {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && lobbyWorld != null) {
                 resetPlayerState(player, GameMode.ADVENTURE);
@@ -97,7 +97,7 @@ public class PlayerListener implements Listener {
             }
         }
 
-        for (UUID uuid : spectators) {
+        for (UUID uuid : tracker.getSpectators()) {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && lobbyWorld != null) {
                 resetPlayerState(player, GameMode.ADVENTURE);
@@ -105,21 +105,11 @@ public class PlayerListener implements Listener {
             }
         }
 
-        this.userMaterialMap.clear();
-        this.usersInGame.clear();
-        this.completedUsers.clear();
-        this.spectators.clear();
-        this.readyPlayers.clear();
-        this.skippedPlayers.clear();
+        tracker.clearAll();
 
         if (currentGameWorld != null) {
             Bukkit.unloadWorld(currentGameWorld, false);
-            try {
-                File worldFolder = currentGameWorld.getWorldFolder();
-                deleteWorldFolder(worldFolder);
-            } catch (Exception e) {
-                BlockShuffle.logger.warning("Failed to delete world folder: " + e.getMessage());
-            }
+            worldService.deleteWorld(currentGameWorld);
             currentGameWorld = null;
         }
     }
@@ -128,49 +118,49 @@ public class PlayerListener implements Listener {
         this.roundNumber++;
 
         if (roundNumber > 1) {
-            if (this.completedUsers.size() == 1) {
+            if (tracker.getCompletedUsers().size() == 1) {
                 eliminateIncompletePlayers();
                 announceWinnersAndReset();
                 return;
             } else {
-                if (!this.completedUsers.isEmpty()) {
+                if (!tracker.getCompletedUsers().isEmpty()) {
                     eliminateIncompletePlayers();
                 } else {
                     broadcastUnfoundBlocks();
                 }
             }
-            this.completedUsers.clear();
+            tracker.getCompletedUsers().clear();
         }
         startNewRound();
     }
 
     private void eliminateIncompletePlayers() {
-        Iterator<UUID> iterator = usersInGame.iterator();
+        Iterator<UUID> iterator = tracker.getUsersInGame().iterator();
         while (iterator.hasNext()) {
             UUID uuid = iterator.next();
-            if (!completedUsers.contains(uuid)) {
+            if (!tracker.getCompletedUsers().contains(uuid)) {
                 Player player = Bukkit.getPlayer(uuid);
                 if (player != null) {
-                    String playersBlock = formatMaterialName(userMaterialMap.get(uuid));
+                    String playersBlock = formatMaterialName(tracker.getUserMaterialMap().get(uuid));
                     Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
                             "&8[&7Block Shuffle&8] &f» " + player.getName() +
                                     " &cgot eliminated! Their block was: &c&l" + playersBlock));
                     player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_DEATH, 1.0f, 1.0f);
-                    spectators.add(uuid);
+                    tracker.addSpectator(uuid);
                     player.setGameMode(GameMode.SPECTATOR);
                 }
                 iterator.remove();
-                userMaterialMap.remove(uuid);
+                tracker.getUserMaterialMap().remove(uuid);
             }
         }
     }
 
     private void broadcastUnfoundBlocks() {
-        for (UUID uuid : usersInGame) {
-            if (!completedUsers.contains(uuid)) {
+        for (UUID uuid : tracker.getUsersInGame()) {
+            if (!tracker.getCompletedUsers().contains(uuid)) {
                 Player player = Bukkit.getPlayer(uuid);
                 if (player != null) {
-                    String playersBlock = formatMaterialName(userMaterialMap.get(uuid));
+                    String playersBlock = formatMaterialName(tracker.getUserMaterialMap().get(uuid));
                     Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
                             "&8[&7Block Shuffle&8] &f» " + player.getName() +
                                     " &chad: &c&l" + playersBlock));
@@ -187,14 +177,14 @@ public class PlayerListener implements Listener {
                 "&8[&7Block Shuffle&8] &f» " + winnerMessage));
         String title = ChatColor.translateAlternateColorCodes('&', "&f" + winnerMessage);
 
-        for (UUID uuid : usersInGame) {
+        for (UUID uuid : tracker.getUsersInGame()) {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && player.isOnline()) {
                 player.playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_DEATH, 1.0f, 1.0f);
             }
         }
 
-        for (UUID uuid : completedUsers) {
+        for (UUID uuid : tracker.getCompletedUsers()) {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && player.isOnline()) {
                 for (int i = 0; i < 16; i++) {
@@ -207,33 +197,17 @@ public class PlayerListener implements Listener {
         Bukkit.getScheduler().runTaskLater(this.plugin, this::resetGame, 140L);
     }
 
-    private void launchFireworkAt(Location location) {
-        Firework firework = (Firework) location.getWorld().spawnEntity(location, org.bukkit.entity.EntityType.FIREWORK_ROCKET);
-        FireworkMeta meta = firework.getFireworkMeta();
-
-        meta.addEffect(FireworkEffect.builder()
-                .flicker(true)
-                .trail(true)
-                .with(FireworkEffect.Type.BALL_LARGE)
-                .withColor(Color.GREEN)
-                .withFade(Color.LIME)
-                .build());
-        meta.setPower(1);
-
-        firework.setFireworkMeta(meta);
-    }
-
     private void startNewRound() {
         this.bossBar.setVisible(true);
         this.roundStartTime = System.currentTimeMillis();
 
-        for (UUID uuid : usersInGame) {
+        for (UUID uuid : tracker.getUsersInGame()) {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null) {
                 Material randomBlock = getRandomMaterial();
                 BlockShuffle.logger.log(Level.INFO, "[Round Start] " + player.getName() + " " + randomBlock);
                 String randomBlockName = formatMaterialName(randomBlock);
-                userMaterialMap.put(uuid, randomBlock);
+                tracker.assignBlock(uuid, randomBlock);
                 BlockShuffle.logger.log(Level.INFO, player.getName() + " got " + randomBlockName);
                 player.sendMessage(ChatColor.translateAlternateColorCodes('&',
                         "&8[&7Block Shuffle&8] &f» &aYour block is: &a&l" + randomBlockName));
@@ -244,17 +218,17 @@ public class PlayerListener implements Listener {
     }
 
     public boolean trySkip(UUID uuid) {
-        if (!usersInGame.contains(uuid)) return false;
-        if (skippedPlayers.contains(uuid)) return false;
-        if (completedUsers.contains(uuid)) return false;
+        if (!tracker.getUsersInGame().contains(uuid)) return false;
+        if (tracker.getSkippedPlayers().contains(uuid)) return false;
+        if (tracker.getCompletedUsers().contains(uuid)) return false;
 
         Player player = Bukkit.getPlayer(uuid);
         if (player == null) return false;
 
-        Material oldBlock = userMaterialMap.get(uuid);
+        Material oldBlock = tracker.getUserMaterialMap().get(uuid);
         Material newBlock = getRandomMaterial();
-        userMaterialMap.put(uuid, newBlock);
-        skippedPlayers.add(uuid);
+        tracker.assignBlock(uuid, newBlock);
+        tracker.addSkipped(uuid);
 
         String oldBlockName = formatMaterialName(oldBlock);
         String newBlockName = formatMaterialName(newBlock);
@@ -270,7 +244,7 @@ public class PlayerListener implements Listener {
 
     private String createWinnerMessage() {
         StringBuilder sb = new StringBuilder();
-        for (UUID uuid : this.completedUsers) {
+        for (UUID uuid : tracker.getCompletedUsers()) {
             sb.append(Objects.requireNonNull(Bukkit.getPlayer(uuid)).getName()).append(" &awon the game!");
         }
         return sb.toString();
@@ -278,7 +252,7 @@ public class PlayerListener implements Listener {
 
     private BossBar createBossBar() {
         BossBar bossBar = Bukkit.createBossBar("Round: " + roundNumber + " | Time: XXX", BarColor.GREEN, BarStyle.SOLID);
-        for (UUID uuid : this.usersInGame) {
+        for (UUID uuid : tracker.getUsersInGame()) {
             Player player = Bukkit.getPlayer(uuid);
             bossBar.addPlayer(player);
         }
@@ -301,8 +275,8 @@ public class PlayerListener implements Listener {
         long seconds = secondsRemaining % 60;
 
         if (secondsRemaining <= 5) {
-            for (UUID uuid : usersInGame) {
-                if (!completedUsers.contains(uuid)) {
+            for (UUID uuid : tracker.getUsersInGame()) {
+                if (!tracker.getCompletedUsers().contains(uuid)) {
                     Player player = Bukkit.getPlayer(uuid);
                     if (player != null && player.isOnline()) {
                         player.sendTitle(ChatColor.RED + String.valueOf(secondsRemaining), "", 0, 20, 0);
@@ -321,15 +295,15 @@ public class PlayerListener implements Listener {
 
         this.bossBar.setTitle("Round: " + roundNumber + " | Time: " + timeString);
 
-        for (UUID uuid : usersInGame) {
+        for (UUID uuid : tracker.getUsersInGame()) {
             Player player = Bukkit.getPlayer(uuid);
             if (player == null || !player.isOnline()) continue;
 
             String actionBarMessage;
-            if (completedUsers.contains(uuid)) {
+            if (tracker.getCompletedUsers().contains(uuid)) {
                 actionBarMessage = ChatColor.translateAlternateColorCodes('&', "&eWaiting for next round...");
             } else {
-                Material targetBlock = userMaterialMap.get(uuid);
+                Material targetBlock = tracker.getUserMaterialMap().get(uuid);
                 String blockName = formatMaterialName(targetBlock);
                 actionBarMessage = ChatColor.translateAlternateColorCodes('&', "&aStand on: &l" + blockName);
             }
@@ -368,18 +342,11 @@ public class PlayerListener implements Listener {
         return selectedMaterial;
     }
 
-    private String formatMaterialName(Material material) {
-        return Arrays.stream(material.name().split("_"))
-                .map(word -> word.toLowerCase(Locale.ROOT))
-                .map(word -> Character.toUpperCase(word.charAt(0)) + word.substring(1))
-                .collect(Collectors.joining(" "));
-    }
-
     public void readyAllPlayers() {
         for (Player player : Bukkit.getOnlinePlayers()) {
             UUID uuid = player.getUniqueId();
-            if (!readyPlayers.contains(uuid)) {
-                readyPlayers.add(uuid);
+            if (!tracker.getReadyPlayers().contains(uuid)) {
+                tracker.getReadyPlayers().add(uuid);
                 Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
                         "&8[&7Block Shuffle&8] &f» " + player.getName() + " &ais now ready (forced)"));
             }
@@ -392,9 +359,9 @@ public class PlayerListener implements Listener {
         Player player = event.getPlayer();
         UUID uuid = player.getUniqueId();
 
-        if (!userMaterialMap.containsKey(uuid)) return;
+        if (!tracker.getUserMaterialMap().containsKey(uuid)) return;
 
-        Material assignedBlock = userMaterialMap.get(uuid);
+        Material assignedBlock = tracker.getUserMaterialMap().get(uuid);
         Location loc = player.getLocation();
 
         // Check blocks from 0.0 to -1.2 beneath the player's feet
@@ -413,12 +380,12 @@ public class PlayerListener implements Listener {
                 Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
                         "&8[&7Block Shuffle&8] &f» " + player.getName() + " &astood on their block. Their block was: &l" + blockName));
                 player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
-                completedUsers.add(uuid);
+                tracker.addCompleted(uuid);
             }
 
-            userMaterialMap.remove(uuid);
+            tracker.getUserMaterialMap().remove(uuid);
 
-            if (completedUsers.size() == usersInGame.size()) {
+            if (tracker.getCompletedUsers().size() == tracker.getUsersInGame().size()) {
                 BlockShuffle.logger.info("[Game State] All players completed their block — starting next round");
                 Bukkit.getScheduler().cancelTask(this.roundEndTask);
                 this.nextRound();
@@ -429,7 +396,7 @@ public class PlayerListener implements Listener {
     @EventHandler
     public void onPlayerQuitEvent(PlayerQuitEvent event) {
         UUID playerUUID = event.getPlayer().getUniqueId();
-        spectators.remove(playerUUID);
+        tracker.getSpectators().remove(playerUUID);
     }
 
     @EventHandler
@@ -438,7 +405,7 @@ public class PlayerListener implements Listener {
         UUID uuid = player.getUniqueId();
 
         if (plugin.isInProgress()) {
-            if (this.usersInGame.contains(uuid)) {
+            if (tracker.getUsersInGame().contains(uuid)) {
                 // They were already in the game, teleport them back and restore state
                 if (currentGameWorld != null) {
                     player.teleport(currentGameWorld.getSpawnLocation());
@@ -447,7 +414,7 @@ public class PlayerListener implements Listener {
                             "&8[&7Block Shuffle&8] &f» &aYou've rejoined the game"));
 
                     // Re-send their block task, if it still exists
-                    Material material = this.userMaterialMap.get(uuid);
+                    Material material = tracker.getUserMaterialMap().get(uuid);
                     if (material != null) {
                         String playerOnBlock2 = formatMaterialName(material);
                         player.sendMessage(ChatColor.translateAlternateColorCodes('&',
@@ -480,10 +447,10 @@ public class PlayerListener implements Listener {
 
         // Check if the player is still actively playing
         BlockShuffle.logger.log(Level.INFO, "[Respawn] Game in progress: {0}", plugin.isInProgress());
-        BlockShuffle.logger.log(Level.INFO, "[Respawn] Player in usersInGame: {0}", usersInGame.contains(uuid));
+        BlockShuffle.logger.log(Level.INFO, "[Respawn] Player in usersInGame: {0}", tracker.getUsersInGame().contains(uuid));
         BlockShuffle.logger.log(Level.INFO, "[Respawn] Current game world exists: {0}", currentGameWorld != null);
 
-        if (plugin.isInProgress() && usersInGame.contains(uuid) && currentGameWorld != null) {
+        if (plugin.isInProgress() && tracker.getUsersInGame().contains(uuid) && currentGameWorld != null) {
             BlockShuffle.logger.log(Level.INFO, player.getName() + " deemed still playing");
             Location respawnLocation = currentGameWorld.getSpawnLocation().clone();
             event.setRespawnLocation(respawnLocation);
@@ -535,74 +502,8 @@ public class PlayerListener implements Listener {
         }
     }
 
-    public World createNewWorld() {
-        String worldName = "blockshuffle_" + System.currentTimeMillis(); // unique world name
-        WorldCreator creator = new WorldCreator(worldName);
-        return Bukkit.createWorld(creator); // creates and loads the world
-    }
-
-    private void deleteWorldFolder(File path) {
-        if (path.isDirectory()) {
-            for (File file : path.listFiles()) {
-                deleteWorldFolder(file);
-            }
-        }
-        path.delete();
-    }
-
-    private void resetPlayerState(Player player, GameMode gameMode) {
-        player.setGameMode(gameMode);
-        player.getInventory().clear();
-        player.setHealth(player.getMaxHealth());
-        player.setFoodLevel(20);
-        player.setSaturation(5f);
-        player.setExhaustion(0f);
-        player.setExp(0f);
-        player.setLevel(0);
-        player.setFireTicks(0);
-        player.setFallDistance(0f);
-        player.setVelocity(new org.bukkit.util.Vector(0, 0, 0));
-
-        // Remove all active potion effects
-        player.getActivePotionEffects().forEach(effect -> player.removePotionEffect(effect.getType()));
-
-        // Remove all advancements
-        AdvancementProgress progress;
-        for (@NotNull Iterator<Advancement> it = Bukkit.advancementIterator(); it.hasNext(); ) {
-            Advancement advancement = it.next();
-            progress = player.getAdvancementProgress(advancement);
-            for (String criterion : progress.getAwardedCriteria()) {
-                progress.revokeCriteria(criterion);
-            }
-        }
-    }
-
     public BlockShuffle getPlugin() {
         return plugin;
-    }
-
-    public boolean isReady(UUID uuid) {
-        return readyPlayers.contains(uuid);
-    }
-
-    public void setReady(UUID uuid) {
-        readyPlayers.add(uuid);
-    }
-
-    public void setNotReady(UUID uuid) {
-        readyPlayers.remove(uuid);
-    }
-
-    public Set<UUID> getReadyPlayers() {
-        return readyPlayers;
-    }
-
-    public Set<UUID> getUsersInGame() {
-        return usersInGame;
-    }
-
-    public Set<UUID> getCompletedUsers() {
-        return completedUsers;
     }
 
 }

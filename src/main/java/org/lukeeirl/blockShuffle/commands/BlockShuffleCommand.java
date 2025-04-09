@@ -11,6 +11,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.lukeeirl.blockShuffle.BlockShuffle;
 import org.lukeeirl.blockShuffle.events.PlayerListener;
+import org.lukeeirl.blockShuffle.game.PlayerTracker;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -20,10 +21,12 @@ import java.util.UUID;
 public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
 
     private final PlayerListener playerListener;
+    private final PlayerTracker playerTracker;
     private final BlockShuffle plugin;
 
-    public BlockShuffleCommand(PlayerListener playerListener, BlockShuffle plugin, YamlConfiguration settings) {
+    public BlockShuffleCommand(PlayerListener playerListener, PlayerTracker playerTracker, BlockShuffle plugin, YamlConfiguration settings) {
         this.playerListener = playerListener;
+        this.playerTracker = playerTracker;
         this.plugin = plugin;
     }
 
@@ -42,12 +45,12 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
         switch (args[0].toLowerCase()) {
             case "ready":
                 UUID uuid = player.getUniqueId();
-                if (playerListener.isReady(uuid)) {
-                    playerListener.setNotReady(uuid);
+                if (playerTracker.isReady(uuid)) {
+                    playerTracker.setNotReady(uuid);
                     Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
                             "&8[&7Block Shuffle&8] &f» " + player.getName() + " &cis no longer ready"));
                 } else {
-                    playerListener.setReady(uuid);
+                    playerTracker.setReady(uuid);
                     Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
                             "&8[&7Block Shuffle&8] &f» " + player.getName() + " &ais now ready"));
                 }
@@ -64,7 +67,7 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
 
-                if (playerListener.getReadyPlayers().isEmpty()) {
+                if (playerTracker.getReadyPlayers().isEmpty()) {
                     player.sendMessage(ChatColor.RED + "No players are ready.");
                     return true;
                 }
