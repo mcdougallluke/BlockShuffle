@@ -36,7 +36,7 @@ public final class BlockShuffle extends JavaPlugin {
         blockShuffleCmd.setExecutor(commandHandler);
         blockShuffleCmd.setTabCompleter(commandHandler);
         skipBlockCmd.setExecutor(new SkipBlockCommand(playerListener, playerTracker));
-        lobbyCmd.setExecutor(new LobbyCommand(this, playerTracker));
+        lobbyCmd.setExecutor(new LobbyCommand(this, playerTracker, playerListener));
 
         this.getServer().getPluginManager().registerEvents(playerListener, this);
     }

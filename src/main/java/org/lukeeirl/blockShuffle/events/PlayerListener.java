@@ -42,7 +42,7 @@ public class PlayerListener implements Listener {
     private final BlockShuffle plugin;
     private final YamlConfiguration settings;
     private final Random random = new Random();
-    private final int ticksInRound = 6000; // 6000 ticks = 300 sec == 5 min
+    private final int ticksInRound = 600; // 6000 ticks = 300 sec == 5 min
 
     private List<Material> materials;
     private int bossBarTask;
@@ -134,6 +134,23 @@ public class PlayerListener implements Listener {
         startNewRound();
     }
 
+    public void checkIfAllPlayersDone() {
+        if (tracker.getUsersInGame().isEmpty()) return;
+        if (tracker.getCompletedUsers().containsAll(tracker.getUsersInGame())) {
+            Bukkit.getScheduler().runTask(plugin, this::nextRound);
+        }
+    }
+
+    public void announceElimination(UUID uuid) {
+        Player player = Bukkit.getPlayer(uuid);
+        if (player != null) {
+            String playersBlock = formatMaterialName(tracker.getUserMaterialMap().get(uuid));
+            Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
+                    "&8[&7Block Shuffle&8] &f» " + player.getName() +
+                            " &cgot eliminated! Their block was: &c&l" + playersBlock));
+        }
+    }
+
     private void eliminateIncompletePlayers() {
         Iterator<UUID> iterator = tracker.getUsersInGame().iterator();
         while (iterator.hasNext()) {
@@ -171,7 +188,7 @@ public class PlayerListener implements Listener {
                 "&8[&7Block Shuffle&8] &f» &cNobody stood on their block"));
     }
 
-    private void announceWinnersAndReset() {
+    public void announceWinnersAndReset() {
         String winnerMessage = this.createWinnerMessage();
         Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
                 "&8[&7Block Shuffle&8] &f» " + winnerMessage));
@@ -363,9 +380,8 @@ public class PlayerListener implements Listener {
         Material assignedBlock = tracker.getUserMaterialMap().get(uuid);
         Location loc = player.getLocation();
 
-        // Check blocks from 0.0 to -1.2 beneath the player's feet
         boolean found = false;
-        for (double yOffset : new double[]{0.0, -0.1, -0.3, -0.6, -1.0, -1.2}) {
+        for (double yOffset : new double[]{0.0, -0.1, -0.3, -0.6, -0.8,}) {
             Block checkBlock = loc.clone().add(0, yOffset, 0).getBlock();
             if (checkBlock.getType() == assignedBlock) {
                 found = true;

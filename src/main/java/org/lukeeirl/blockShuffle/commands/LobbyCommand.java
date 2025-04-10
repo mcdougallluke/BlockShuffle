@@ -8,6 +8,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.lukeeirl.blockShuffle.BlockShuffle;
+import org.lukeeirl.blockShuffle.events.PlayerListener;
 import org.lukeeirl.blockShuffle.game.PlayerTracker;
 
 import java.util.UUID;
@@ -17,10 +18,12 @@ import static org.lukeeirl.blockShuffle.util.PlayerUtils.resetPlayerState;
 public class LobbyCommand implements CommandExecutor {
     private final BlockShuffle plugin;
     private final PlayerTracker tracker;
+    private final PlayerListener playerListener;
 
-    public LobbyCommand(BlockShuffle plugin, PlayerTracker tracker) {
+    public LobbyCommand(BlockShuffle plugin, PlayerTracker tracker, PlayerListener playerListener) {
         this.plugin = plugin;
         this.tracker = tracker;
+        this.playerListener = playerListener;
     }
 
     @Override
@@ -32,16 +35,25 @@ public class LobbyCommand implements CommandExecutor {
 
         UUID uuid = player.getUniqueId();
 
-        // Handle active game players: treat it like surrender
         if (tracker.getUsersInGame().contains(uuid)) {
+            playerListener.announceElimination(uuid);
+
+            // Remove the player from all relevant sets
             tracker.getUsersInGame().remove(uuid);
             tracker.getUserMaterialMap().remove(uuid);
             tracker.getCompletedUsers().remove(uuid);
             tracker.getSkippedPlayers().remove(uuid);
-            plugin.getServer().broadcastMessage(ChatColor.RED + player.getName() + " has surrendered and returned to the lobby.");
+
+            // Check if only one player is left
+            if (tracker.getUsersInGame().size() == 1) {
+                UUID winnerUUID = tracker.getUsersInGame().iterator().next();
+                tracker.getCompletedUsers().add(winnerUUID);
+                playerListener.announceWinnersAndReset();
+            } else {
+                playerListener.checkIfAllPlayersDone();
+            }
         }
 
-        // Remove from spectators too
         tracker.getSpectators().remove(uuid);
 
         World lobbyWorld = plugin.getServer().getWorlds().getFirst();
