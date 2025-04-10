@@ -32,7 +32,7 @@ public class PlayerListener implements Listener {
     private final BlockShuffle plugin;
     private final YamlConfiguration settings;
     private final Random random = new Random();
-    private final int ticksInRound = 600; // 6000 ticks = 300 sec == 5 min
+    private final int ticksInRound = 6000; // 6000 ticks = 300 sec == 5 min
 
     private List<Material> materials;
     private int bossBarTask;
