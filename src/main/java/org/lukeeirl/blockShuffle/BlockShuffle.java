@@ -4,6 +4,7 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.lukeeirl.blockShuffle.commands.BlockShuffleCommand;
+import org.lukeeirl.blockShuffle.commands.LobbyCommand;
 import org.lukeeirl.blockShuffle.commands.SkipBlockCommand;
 import org.lukeeirl.blockShuffle.events.PlayerListener;
 import org.lukeeirl.blockShuffle.game.PlayerTracker;
@@ -30,10 +31,12 @@ public final class BlockShuffle extends JavaPlugin {
         BlockShuffleCommand commandHandler = new BlockShuffleCommand(playerListener, playerTracker, this, settings);
         PluginCommand blockShuffleCmd = this.getCommand("blockshuffle");
         PluginCommand skipBlockCmd = this.getCommand("skipblock");
+        PluginCommand lobbyCmd = this.getCommand("lobby");
 
         blockShuffleCmd.setExecutor(commandHandler);
         blockShuffleCmd.setTabCompleter(commandHandler);
         skipBlockCmd.setExecutor(new SkipBlockCommand(playerListener, playerTracker));
+        lobbyCmd.setExecutor(new LobbyCommand(this, playerTracker, playerListener));
 
         this.getServer().getPluginManager().registerEvents(playerListener, this);
     }
