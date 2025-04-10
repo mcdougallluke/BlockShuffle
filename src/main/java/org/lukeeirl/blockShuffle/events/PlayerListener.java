@@ -448,20 +448,23 @@ public class PlayerListener implements Listener {
         Player player = event.getPlayer();
         UUID uuid = player.getUniqueId();
 
-        // Check if the player is still actively playing
-        BlockShuffle.logger.log(Level.INFO, "[Respawn] Game in progress: {0}", plugin.isInProgress());
-        BlockShuffle.logger.log(Level.INFO, "[Respawn] Player in usersInGame: {0}", tracker.getUsersInGame().contains(uuid));
-        BlockShuffle.logger.log(Level.INFO, "[Respawn] Current game world exists: {0}", currentGameWorld != null);
-
-        if (plugin.isInProgress() && tracker.getUsersInGame().contains(uuid) && currentGameWorld != null) {
-            BlockShuffle.logger.log(Level.INFO, player.getName() + " deemed still playing");
-            Location respawnLocation = currentGameWorld.getSpawnLocation().clone();
-            event.setRespawnLocation(respawnLocation);
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                player.teleport(respawnLocation);
-                player.setGameMode(GameMode.SURVIVAL);
-            }, 1L);
+        if (!plugin.isInProgress() || !tracker.getUsersInGame().contains(uuid) || currentGameWorld == null) {
+            return;
         }
+
+        Location spawn = player.getBedSpawnLocation();
+        if (spawn == null || !spawn.getWorld().equals(currentGameWorld)) {
+            spawn = currentGameWorld.getSpawnLocation();
+        }
+
+        spawn = spawn.clone().add((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2);
+
+        event.setRespawnLocation(spawn);
+        Location finalSpawn = spawn.clone();
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            player.teleport(finalSpawn);
+            player.setGameMode(GameMode.SURVIVAL);
+        }, 1L);
     }
 
     @EventHandler
@@ -469,7 +472,6 @@ public class PlayerListener implements Listener {
         if (!(event.getDamager() instanceof Player damager)) return;
         if (!(event.getEntity() instanceof Player target)) return;
 
-        // Cancel PvP only in the game world
         if (currentGameWorld != null &&
                 damager.getWorld().equals(currentGameWorld) &&
                 target.getWorld().equals(currentGameWorld)) {
