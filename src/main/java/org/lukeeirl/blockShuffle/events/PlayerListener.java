@@ -175,7 +175,6 @@ public class PlayerListener implements Listener {
         String winnerMessage = this.createWinnerMessage();
         Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
                 "&8[&7Block Shuffle&8] &f» " + winnerMessage));
-        String title = ChatColor.translateAlternateColorCodes('&', "&f" + winnerMessage);
 
         for (UUID uuid : tracker.getUsersInGame()) {
             Player player = Bukkit.getPlayer(uuid);

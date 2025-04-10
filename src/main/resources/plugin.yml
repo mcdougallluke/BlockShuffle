@@ -9,14 +9,16 @@ website: lukemcd.dev
 commands:
   blockshuffle:
     description: Manage the Block Shuffle game
-    usage: /<command> <ready|start|stop|spectate>
+    usage: /<command> <ready|start|stop|spectate|readyall>
     aliases: [bs]
     permission: blockshuffle.admin
     permission-message: You do not have permission to use this command.
   skipblock:
     description: Skip your assigned block once per game
     usage: /<command>
-
+  lobby:
+    description: Return to the lobby and leave the game
+    usage: /<command>
 
 permissions:
   blockshuffle.admin:
