@@ -49,6 +49,7 @@ public class LobbyCommand implements CommandExecutor {
                 UUID winnerUUID = tracker.getUsersInGame().iterator().next();
                 tracker.getCompletedUsers().add(winnerUUID);
                 playerListener.announceWinnersAndReset();
+                playerListener.endGameEarly();
             } else {
                 playerListener.checkIfAllPlayersDone();
             }

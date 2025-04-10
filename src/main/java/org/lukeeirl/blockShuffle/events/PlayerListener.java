@@ -141,6 +141,10 @@ public class PlayerListener implements Listener {
         }
     }
 
+    public void endGameEarly() {
+        Bukkit.getScheduler().cancelTask(this.roundEndTask);
+    }
+
     public void announceElimination(UUID uuid) {
         Player player = Bukkit.getPlayer(uuid);
         if (player != null) {
