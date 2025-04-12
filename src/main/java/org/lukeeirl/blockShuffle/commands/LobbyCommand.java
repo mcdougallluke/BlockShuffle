@@ -18,12 +18,10 @@ import java.util.UUID;
 import static org.lukeeirl.blockShuffle.util.PlayerUtils.resetPlayerState;
 
 public class LobbyCommand implements CommandExecutor {
-    private final BlockShuffle plugin;
     private final PlayerTracker tracker;
     private final GameManager gameManager;
 
-    public LobbyCommand(BlockShuffle plugin, PlayerTracker tracker, GameManager gameManager) {
-        this.plugin = plugin;
+    public LobbyCommand(PlayerTracker tracker, GameManager gameManager) {
         this.tracker = tracker;
         this.gameManager = gameManager;
     }
@@ -64,7 +62,7 @@ public class LobbyCommand implements CommandExecutor {
 
         tracker.getSpectators().remove(uuid);
 
-        World lobbyWorld = plugin.getServer().getWorlds().getFirst();
+        World lobbyWorld = gameManager.getLobbyWorld();
         resetPlayerState(player, GameMode.ADVENTURE);
         player.teleport(lobbyWorld.getSpawnLocation());
 

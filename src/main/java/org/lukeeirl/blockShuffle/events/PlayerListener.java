@@ -66,7 +66,7 @@ public class PlayerListener implements Listener {
     public void onPlayerJoinEvent(PlayerJoinEvent event) {
         Player player = event.getPlayer();
 
-        if (plugin.isInProgress()) {
+        if (gameManager.isInProgress()) {
             gameManager.playerJoined(player);
         }
     }
@@ -77,7 +77,7 @@ public class PlayerListener implements Listener {
         UUID uuid = player.getUniqueId();
         World currentGameWorld = gameManager.getCurrentGameWorld();
 
-        if (!plugin.isInProgress() || !playerTracker.getUsersInGame().contains(uuid) || currentGameWorld == null) {
+        if (!gameManager.isInProgress() || !playerTracker.getUsersInGame().contains(uuid) || currentGameWorld == null) {
             return;
         }
 

@@ -37,6 +37,8 @@ public class GameManager {
     private long roundStartTime;
     private World currentGameWorld;
     private int roundNumber = 0;
+    private boolean inProgress;
+    private boolean roundWon = false;
 
     public GameManager(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings) {
         this.tracker = tracker;
@@ -51,7 +53,7 @@ public class GameManager {
         currentGameWorld = worldService.createNewWorld();
         String materialPath = "materials";
         this.materials = this.settings.getStringList(materialPath).stream().map(Material::getMaterial).collect(Collectors.toList());
-        plugin.setRoundWon(false);
+        roundWon = false;
 
         for (UUID uuid : tracker.getReadyPlayers()) {
             Player player = Bukkit.getPlayer(uuid);
@@ -68,7 +70,7 @@ public class GameManager {
 
     public void resetGame() {
         this.roundNumber = 0;
-        this.plugin.setInProgress(false);
+        inProgress = false;
         BlockShuffle.logger.info("[Game State] Game ended — setInProgress(false) from resetGame()");
         this.bossBar.removeAll();
         Bukkit.getScheduler().cancelTask(this.roundEndTask);
@@ -122,7 +124,7 @@ public class GameManager {
     public void playerStandingOnBlock(Player player) {
         UUID uuid = player.getUniqueId();
         Material assignedBlock = tracker.getUserMaterialMap().get(uuid);
-        if (!plugin.isRoundWon()) {
+        if (!roundWon) {
             String blockName = formatMaterialName(assignedBlock);
             Bukkit.broadcast(prefixedMessage(
                     Component.text(player.getName() + " ", NamedTextColor.WHITE)
@@ -418,6 +420,22 @@ public class GameManager {
             }
         }
         BlockShuffle.logger.info("[ReadyAll] All online players have been marked as ready.");
+    }
+
+    public boolean isInProgress() {
+        return this.inProgress;
+    }
+
+    public void setInProgress(boolean inProgress) {
+        this.inProgress = inProgress;
+    }
+
+    public boolean isRoundWon() {
+        return this.roundWon;
+    }
+
+    public void setRoundWon(boolean roundWon) {
+        this.roundWon = roundWon;
     }
 
     public BlockShuffle getPlugin() {

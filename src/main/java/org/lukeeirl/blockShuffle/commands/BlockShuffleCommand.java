@@ -25,16 +25,13 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
 
     private final PlayerTracker playerTracker;
     private final GameManager gameManager;
-    private final BlockShuffle plugin;
 
     public BlockShuffleCommand(
             PlayerTracker playerTracker,
-            GameManager gameManager,
-            BlockShuffle plugin
+            GameManager gameManager
     ) {
         this.playerTracker = playerTracker;
         this.gameManager = gameManager;
-        this.plugin = plugin;
     }
 
     @Override
@@ -72,7 +69,7 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
 
-                if (plugin.isInProgress()) {
+                if (gameManager.isInProgress()) {
                     player.sendMessage(Component.text("A game is already in progress.", NamedTextColor.RED));
                     return true;
                 }
@@ -82,7 +79,7 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
 
-                plugin.setInProgress(true);
+                gameManager.setInProgress(true);
                 BlockShuffle.logger.info("[Game State] Admin started game — setInProgress(true) from /blockshuffle start");
                 Bukkit.broadcast(prefixedMessage(Component.text("The game is starting...", NamedTextColor.GREEN)));
                 gameManager.startGame();
@@ -94,7 +91,7 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
 
-                if (!plugin.isInProgress()) {
+                if (!gameManager.isInProgress()) {
                     player.sendMessage(Component.text("No game is currently running.", NamedTextColor.RED));
                     return true;
                 }

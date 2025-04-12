@@ -35,7 +35,7 @@ public class SkipBlockCommand implements CommandExecutor {
             return true;
         }
 
-        if (!gameManager.getPlugin().isInProgress()) {
+        if (!gameManager.isInProgress()) {
             player.sendMessage(Component.text("There is no game currently running.", NamedTextColor.RED));
             return true;
         }
