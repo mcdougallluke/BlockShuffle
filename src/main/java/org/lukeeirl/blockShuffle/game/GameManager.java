@@ -11,6 +11,7 @@ import org.bukkit.boss.BossBar;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.lukeeirl.blockShuffle.BlockShuffle;
+import org.lukeeirl.blockShuffle.ui.SettingsGUI;
 
 import java.time.Duration;
 import java.util.*;
@@ -27,9 +28,9 @@ public class GameManager {
     private final Random random;
     private final WorldService worldService;
     private final PlayerTracker tracker;
+    private final SettingsGUI settingsGUI;
 
-    private final int ticksInRound = 6000; // 6000 ticks = 300 sec = 5 min
-
+    private int ticksInRound = 6000; // 6000 ticks = 300 sec = 5 min
     private List<Material> materials;
     private int bossBarTask;
     private int roundEndTask;
@@ -40,16 +41,18 @@ public class GameManager {
     private boolean inProgress;
     private boolean roundWon = false;
 
-    public GameManager(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings) {
+    public GameManager(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI) {
         this.tracker = tracker;
         this.plugin = plugin;
         this.lobbyWorld = Bukkit.getWorlds().getFirst();
         this.settings = settings;
+        this.settingsGUI = settingsGUI;
         this.random = new Random();
         this.worldService = new WorldService();
     }
 
     public void startGame() {
+        this.ticksInRound = settingsGUI.getRoundTimeTicks();
         currentGameWorld = worldService.createNewWorld();
         String materialPath = "materials";
         this.materials = this.settings.getStringList(materialPath).stream().map(Material::getMaterial).collect(Collectors.toList());
@@ -430,15 +433,7 @@ public class GameManager {
         this.inProgress = inProgress;
     }
 
-    public boolean isRoundWon() {
-        return this.roundWon;
-    }
-
-    public void setRoundWon(boolean roundWon) {
-        this.roundWon = roundWon;
-    }
-
-    public BlockShuffle getPlugin() {
-        return plugin;
+    public boolean isPvpEnabled() {
+        return settingsGUI.isPvpEnabled();
     }
 }

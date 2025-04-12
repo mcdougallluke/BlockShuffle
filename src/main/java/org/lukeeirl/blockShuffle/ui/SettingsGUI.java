@@ -96,8 +96,20 @@ public class SettingsGUI implements Listener {
         for (UUID uuid : openGUIs.keySet()) {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && player.isOnline()) {
-                openSettingsMenu(player);
+                String title = PlainTextComponentSerializer.plainText().serialize(player.getOpenInventory().title());
+                if (title.equals("Block Shuffle Settings")) {
+                    openSettingsMenu(player);
+                }
             }
         }
+    }
+
+
+    public int getRoundTimeTicks() {
+        return roundTimeMinutes * 60 * 20;
+    }
+
+    public boolean isPvpEnabled() {
+        return pvpEnabled;
     }
 }

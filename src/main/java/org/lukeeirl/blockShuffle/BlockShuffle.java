@@ -28,9 +28,9 @@ public final class BlockShuffle extends JavaPlugin {
 
         YamlConfiguration settings = YamlConfiguration.loadConfiguration(this.settingsFile);
         PlayerTracker playerTracker = new PlayerTracker();
-        GameManager gameManager = new GameManager(playerTracker, this, settings);
-        PlayerListener playerListener = new PlayerListener(this, playerTracker, gameManager);
         SettingsGUI settingsGUI = new SettingsGUI(this);
+        GameManager gameManager = new GameManager(playerTracker, this, settings, settingsGUI);
+        PlayerListener playerListener = new PlayerListener(this, playerTracker, gameManager);
         Objects.requireNonNull(this.getCommand("blockshuffle")).setExecutor(new BlockShuffleCommand(playerTracker, gameManager, settingsGUI));
         Objects.requireNonNull(this.getCommand("skipblock")).setExecutor(new SkipBlockCommand(gameManager, playerTracker));
         Objects.requireNonNull(this.getCommand("lobby")).setExecutor(new LobbyCommand(playerTracker, gameManager));
