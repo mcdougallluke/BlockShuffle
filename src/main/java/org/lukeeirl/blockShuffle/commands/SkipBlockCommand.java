@@ -1,51 +1,53 @@
 package org.lukeeirl.blockShuffle.commands;
 
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.lukeeirl.blockShuffle.events.PlayerListener;
+import org.jetbrains.annotations.NotNull;
+import org.lukeeirl.blockShuffle.game.GameManager;
 import org.lukeeirl.blockShuffle.game.PlayerTracker;
 
 import java.util.UUID;
 
 public class SkipBlockCommand implements CommandExecutor {
-    private final PlayerListener playerListener;
+    private final GameManager gameManager;
     private final PlayerTracker playerTracker;
 
-    public SkipBlockCommand(PlayerListener playerListener, PlayerTracker playerTracker) {
-        this.playerListener = playerListener;
+    public SkipBlockCommand(GameManager gameManager, PlayerTracker playerTracker) {
+        this.gameManager = gameManager;
         this.playerTracker = playerTracker;
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("Only players can use this command.");
+            sender.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
             return true;
         }
 
         UUID uuid = player.getUniqueId();
 
         if (!playerTracker.getUsersInGame().contains(uuid)) {
-            player.sendMessage(ChatColor.RED + "You must be in the game to use this command.");
+            player.sendMessage(Component.text("You must be in the game to use this command.", NamedTextColor.RED));
             return true;
         }
 
-        if (!playerListener.getPlugin().isInProgress()) {
-            player.sendMessage(ChatColor.RED + "There is no game currently running.");
+        if (!gameManager.getPlugin().isInProgress()) {
+            player.sendMessage(Component.text("There is no game currently running.", NamedTextColor.RED));
             return true;
         }
 
         if (playerTracker.getCompletedUsers().contains(uuid)) {
-            player.sendMessage(ChatColor.RED + "You already stood on your block.");
+            player.sendMessage(Component.text("You already stood on your block.", NamedTextColor.RED));
             return true;
         }
 
-        boolean success = playerListener.trySkip(uuid);
+        boolean success = gameManager.trySkip(uuid);
         if (!success) {
-            player.sendMessage(ChatColor.RED + "You have already used your skip for this game!");
+            player.sendMessage(Component.text("You have already used your skip for this game!", NamedTextColor.RED));
         }
 
         return true;

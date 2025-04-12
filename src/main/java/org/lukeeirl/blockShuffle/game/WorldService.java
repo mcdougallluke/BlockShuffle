@@ -6,6 +6,7 @@ import org.bukkit.World;
 import org.bukkit.WorldCreator;
 
 import java.io.File;
+import java.util.Objects;
 
 public class WorldService {
     public World createNewWorld() {
@@ -29,7 +30,7 @@ public class WorldService {
 
     private void deleteWorldFolder(File folder) {
         if (folder.isDirectory()) {
-            for (File file : folder.listFiles()) {
+            for (File file : Objects.requireNonNull(folder.listFiles())) {
                 deleteWorldFolder(file);
             }
         }
