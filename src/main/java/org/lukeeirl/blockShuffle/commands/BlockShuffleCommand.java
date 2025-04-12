@@ -1,16 +1,16 @@
 package org.lukeeirl.blockShuffle.commands;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.GameMode;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 import org.lukeeirl.blockShuffle.BlockShuffle;
-import org.lukeeirl.blockShuffle.events.PlayerListener;
+import org.lukeeirl.blockShuffle.game.GameManager;
 import org.lukeeirl.blockShuffle.game.PlayerTracker;
 
 import java.util.Arrays;
@@ -18,27 +18,39 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+import static org.lukeeirl.blockShuffle.util.PlayerUtils.formatStatusMessage;
+import static org.lukeeirl.blockShuffle.util.PlayerUtils.prefixedMessage;
+
 public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
 
-    private final PlayerListener playerListener;
     private final PlayerTracker playerTracker;
+    private final GameManager gameManager;
     private final BlockShuffle plugin;
 
-    public BlockShuffleCommand(PlayerListener playerListener, PlayerTracker playerTracker, BlockShuffle plugin, YamlConfiguration settings) {
-        this.playerListener = playerListener;
+    public BlockShuffleCommand(
+            PlayerTracker playerTracker,
+            GameManager gameManager,
+            BlockShuffle plugin
+    ) {
         this.playerTracker = playerTracker;
+        this.gameManager = gameManager;
         this.plugin = plugin;
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public boolean onCommand(
+            @NotNull CommandSender sender,
+            @NotNull Command command,
+            @NotNull String label,
+            String[] args
+    ) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("This command can only be used by players.");
+            sender.sendMessage(Component.text("This command can only be used by players.", NamedTextColor.RED));
             return true;
         }
 
         if (args.length == 0) {
-            player.sendMessage(ChatColor.YELLOW + "Usage: /blockshuffle <ready|start|stop|spectate>");
+            player.sendMessage(Component.text("Usage: /blockshuffle <ready|start|stop|spectate>", NamedTextColor.YELLOW));
             return true;
         }
 
@@ -47,87 +59,66 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
                 UUID uuid = player.getUniqueId();
                 if (playerTracker.isReady(uuid)) {
                     playerTracker.setNotReady(uuid);
-                    Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
-                            "&8[&7Block Shuffle&8] &f» " + player.getName() + " &cis no longer ready"));
+                    Bukkit.broadcast(formatStatusMessage(player.getName(), "is no longer ready", NamedTextColor.RED));
                 } else {
                     playerTracker.setReady(uuid);
-                    Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
-                            "&8[&7Block Shuffle&8] &f» " + player.getName() + " &ais now ready"));
+                    Bukkit.broadcast(formatStatusMessage(player.getName(), "is now ready", NamedTextColor.GREEN));
                 }
                 break;
 
             case "start":
                 if (!player.hasPermission("blockshuffle.admin")) {
-                    player.sendMessage(ChatColor.RED + "You do not have permission to start the game.");
+                    player.sendMessage(Component.text("You do not have permission to start the game.", NamedTextColor.RED));
                     return true;
                 }
 
                 if (plugin.isInProgress()) {
-                    player.sendMessage(ChatColor.RED + "A game is already in progress.");
+                    player.sendMessage(Component.text("A game is already in progress.", NamedTextColor.RED));
                     return true;
                 }
 
                 if (playerTracker.getReadyPlayers().isEmpty()) {
-                    player.sendMessage(ChatColor.RED + "No players are ready.");
+                    player.sendMessage(Component.text("No players are ready.", NamedTextColor.RED));
                     return true;
                 }
 
                 plugin.setInProgress(true);
                 BlockShuffle.logger.info("[Game State] Admin started game — setInProgress(true) from /blockshuffle start");
-                plugin.getServer().broadcastMessage(ChatColor.translateAlternateColorCodes('&',
-                        "&8[&7Block Shuffle&8] &f» &aThe game is starting"));
-                playerListener.startGame();
+                Bukkit.broadcast(prefixedMessage(Component.text("The game is starting...", NamedTextColor.GREEN)));
+                gameManager.startGame();
                 break;
 
             case "stop":
                 if (!player.hasPermission("blockshuffle.admin")) {
-                    player.sendMessage(ChatColor.RED + "You do not have permission to stop the game.");
+                    player.sendMessage(Component.text("You do not have permission to stop the game.", NamedTextColor.RED));
                     return true;
                 }
 
                 if (!plugin.isInProgress()) {
-                    player.sendMessage(ChatColor.RED + "No game is currently running.");
+                    player.sendMessage(Component.text("No game is currently running.", NamedTextColor.RED));
                     return true;
                 }
 
-                playerListener.resetGame();
-                plugin.getServer().broadcastMessage(ChatColor.translateAlternateColorCodes('&',
-                        "&8[&7Block Shuffle&8] &f» &cThe game has been stopped"));
+                gameManager.resetGame();
+                Bukkit.broadcast(prefixedMessage(Component.text("The game has been stopped", NamedTextColor.RED)));
                 break;
 
             case "spectate":
-//                UUID spectateUUID = player.getUniqueId();
-//
-//                // Remove from active game participants
-//                if (playerListener.getUsersInGame().contains(spectateUUID)) {
-//                    playerListener.getUsersInGame().remove(spectateUUID);
-//                    playerListener.getUserMaterialMap().remove(spectateUUID);
-//                    BlockShuffle.logger.info(player.getName() + " left the game via /spectate — removed from usersInGame.");
-//                }
-//
-//                // Add to spectators
-//                if (!playerListener.getSpectators().contains(spectateUUID)) {
-//                    playerListener.getSpectators().add(spectateUUID);
-//                    BlockShuffle.logger.info(player.getName() + " is now marked as a spectator.");
-//                }
-//
-//                player.setGameMode(GameMode.SPECTATOR);
-                player.sendMessage(ChatColor.GRAY + "Command currently disabled");
+                player.sendMessage(Component.text("Command currently disabled", NamedTextColor.GRAY));
                 break;
 
             case "readyall":
                 if (!player.hasPermission("blockshuffle.admin")) {
-                    player.sendMessage(ChatColor.RED + "You do not have permission to ready all players.");
+                    player.sendMessage(Component.text("You do not have permission to ready all players.", NamedTextColor.RED));
                     return true;
                 }
 
-                playerListener.readyAllPlayers();
-                player.sendMessage(ChatColor.GREEN + "All players have been marked as ready.");
+                gameManager.readyAllPlayers();
+                player.sendMessage(Component.text("All players have been marked as ready.", NamedTextColor.GREEN));
                 break;
 
-
             default:
-                player.sendMessage(ChatColor.YELLOW + "Unknown subcommand. Try: /blockshuffle <ready|start|stop|spectate|readyall>");
+                player.sendMessage(Component.text("Unknown subcommand. Try: /blockshuffle <ready|start|stop|spectate|readyall>", NamedTextColor.YELLOW));
                 break;
         }
 
@@ -135,7 +126,12 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+    public List<String> onTabComplete(
+            @NotNull CommandSender sender,
+            @NotNull Command command,
+            @NotNull String alias,
+            String[] args
+    ) {
         if (args.length == 1) {
             List<String> subcommands = Arrays.asList("ready", "start", "stop", "spectate", "readyall");
 
@@ -146,5 +142,4 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
 
         return Collections.emptyList();
     }
-
 }

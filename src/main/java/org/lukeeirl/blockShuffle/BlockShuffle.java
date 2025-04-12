@@ -1,15 +1,18 @@
 package org.lukeeirl.blockShuffle;
 
-import org.bukkit.command.PluginCommand;
+import org.bukkit.Bukkit;
+import org.bukkit.World;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.lukeeirl.blockShuffle.commands.BlockShuffleCommand;
 import org.lukeeirl.blockShuffle.commands.LobbyCommand;
 import org.lukeeirl.blockShuffle.commands.SkipBlockCommand;
 import org.lukeeirl.blockShuffle.events.PlayerListener;
+import org.lukeeirl.blockShuffle.game.GameManager;
 import org.lukeeirl.blockShuffle.game.PlayerTracker;
 
 import java.io.File;
+import java.util.Objects;
 import java.util.logging.Logger;
 
 public final class BlockShuffle extends JavaPlugin {
@@ -22,21 +25,18 @@ public final class BlockShuffle extends JavaPlugin {
     @Override
     public void onEnable() {
         logger = this.getLogger();
+
         this.settingsFile = this.getDataFolder().toPath().resolve("settings.yml").toFile();
         this.createSettingsFile();
 
         YamlConfiguration settings = YamlConfiguration.loadConfiguration(this.settingsFile);
         PlayerTracker playerTracker = new PlayerTracker();
-        PlayerListener playerListener = new PlayerListener(settings, playerTracker, this);
-        BlockShuffleCommand commandHandler = new BlockShuffleCommand(playerListener, playerTracker, this, settings);
-        PluginCommand blockShuffleCmd = this.getCommand("blockshuffle");
-        PluginCommand skipBlockCmd = this.getCommand("skipblock");
-        PluginCommand lobbyCmd = this.getCommand("lobby");
+        GameManager gameManager = new GameManager(playerTracker, this, settings);
+        PlayerListener playerListener = new PlayerListener(this, playerTracker, gameManager);
 
-        blockShuffleCmd.setExecutor(commandHandler);
-        blockShuffleCmd.setTabCompleter(commandHandler);
-        skipBlockCmd.setExecutor(new SkipBlockCommand(playerListener, playerTracker));
-        lobbyCmd.setExecutor(new LobbyCommand(this, playerTracker, playerListener));
+        Objects.requireNonNull(this.getCommand("blockshuffle")).setExecutor(new BlockShuffleCommand(playerTracker, gameManager, this));
+        Objects.requireNonNull(this.getCommand("skipblock")).setExecutor(new SkipBlockCommand(gameManager, playerTracker));
+        Objects.requireNonNull(this.getCommand("lobby")).setExecutor(new LobbyCommand(this, playerTracker, gameManager));
 
         this.getServer().getPluginManager().registerEvents(playerListener, this);
     }

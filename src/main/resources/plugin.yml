@@ -1,9 +1,9 @@
-name: block-shuffle
-version: '1.0-SNAPSHOT'
+name: BlockShuffle
+version: '1.0.0'
 main: org.lukeeirl.blockShuffle.BlockShuffle
 api-version: '1.21'
 authors: [ lukeeirl ]
-description: A simple Block Shuffle game for Minecraft 1.21
+description: A Block Shuffle game for Minecraft 1.21
 website: lukemcd.dev
 
 commands:
@@ -22,4 +22,4 @@ commands:
 
 permissions:
   blockshuffle.admin:
-    default: true
+    default: op
