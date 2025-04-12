@@ -39,7 +39,6 @@ public class GameManager {
     private World currentGameWorld;
     private int roundNumber = 0;
     private boolean inProgress;
-    private boolean roundWon = false;
 
     public GameManager(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI) {
         this.tracker = tracker;
@@ -56,7 +55,6 @@ public class GameManager {
         currentGameWorld = worldService.createNewWorld();
         String materialPath = "materials";
         this.materials = this.settings.getStringList(materialPath).stream().map(Material::getMaterial).collect(Collectors.toList());
-        roundWon = false;
 
         for (UUID uuid : tracker.getReadyPlayers()) {
             Player player = Bukkit.getPlayer(uuid);
@@ -127,16 +125,14 @@ public class GameManager {
     public void playerStandingOnBlock(Player player) {
         UUID uuid = player.getUniqueId();
         Material assignedBlock = tracker.getUserMaterialMap().get(uuid);
-        if (!roundWon) {
-            String blockName = formatMaterialName(assignedBlock);
-            Bukkit.broadcast(prefixedMessage(
-                    Component.text(player.getName() + " ", NamedTextColor.WHITE)
-                            .append(Component.text("stood on their block. Their block was: ", NamedTextColor.GREEN))
-                            .append(Component.text(blockName, NamedTextColor.GREEN, TextDecoration.BOLD))));
-            player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
-            tracker.addCompleted(uuid);
-        }
 
+        String blockName = formatMaterialName(assignedBlock);
+        Bukkit.broadcast(prefixedMessage(
+                Component.text(player.getName() + " ", NamedTextColor.WHITE)
+                        .append(Component.text("stood on their block. Their block was: ", NamedTextColor.GREEN))
+                        .append(Component.text(blockName, NamedTextColor.GREEN, TextDecoration.BOLD))));
+        player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
+        tracker.addCompleted(uuid);
         tracker.getUserMaterialMap().remove(uuid);
 
         if (tracker.getCompletedUsers().size() == tracker.getUsersInGame().size()) {
@@ -273,20 +269,23 @@ public class GameManager {
         this.roundStartTime = System.currentTimeMillis();
 
         for (UUID uuid : tracker.getUsersInGame()) {
-            Player player = Bukkit.getPlayer(uuid);
-            if (player != null) {
-                Material randomBlock = getRandomMaterial();
-                BlockShuffle.logger.log(Level.INFO, "[Round Start] " + player.getName() + " " + randomBlock);
-                String randomBlockName = formatMaterialName(randomBlock);
-                tracker.assignBlock(uuid, randomBlock);
-                BlockShuffle.logger.log(Level.INFO, player.getName() + " got " + randomBlockName);
-                player.sendMessage(prefixedMessage(
-                        Component.text("Your block is: ", NamedTextColor.GREEN)
-                                .append(Component.text(randomBlockName, NamedTextColor.GREEN, TextDecoration.BOLD))));
-            }
+            assignNewBlockToPlayer(uuid);
         }
 
         this.roundEndTask = Bukkit.getScheduler().scheduleSyncDelayedTask(this.plugin, this::nextRound, this.ticksInRound);
+    }
+
+    private void assignNewBlockToPlayer(UUID uuid) {
+        Player player = Bukkit.getPlayer(uuid);
+        if (player == null) return;
+
+        Material block = getRandomMaterial();
+        tracker.assignBlock(uuid, block);
+        BlockShuffle.logger.log(Level.INFO, player.getName() + " got " + formatMaterialName(block));
+        player.sendMessage(prefixedMessage(
+                Component.text("Your new block is: ", NamedTextColor.GREEN)
+                        .append(Component.text(formatMaterialName(block), NamedTextColor.GREEN, TextDecoration.BOLD))
+        ));
     }
 
     public boolean trySkip(UUID uuid) {
@@ -436,4 +435,9 @@ public class GameManager {
     public boolean isPvpEnabled() {
         return settingsGUI.isPvpEnabled();
     }
+
+    private boolean isContinuousMode() {
+        return settingsGUI.isContinuousMode();
+    }
+
 }

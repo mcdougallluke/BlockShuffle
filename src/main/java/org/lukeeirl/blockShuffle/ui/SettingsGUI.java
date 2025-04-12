@@ -25,8 +25,10 @@ import static org.lukeeirl.blockShuffle.util.PlayerUtils.prefixedMessage;
 public class SettingsGUI implements Listener {
 
     private final Plugin plugin;
+    private final int[] roundTimeOptions = {30, 60, 180, 300};
 
-    private int roundTimeMinutes = 5;
+    private int roundTimeSeconds = 300; // default 5 minutes
+    private int timeOptionIndex = 3;
     private boolean pvpEnabled = false;
     private String gameMode = "Classic";
 
@@ -40,7 +42,15 @@ public class SettingsGUI implements Listener {
     public void openSettingsMenu(Player player) {
         Inventory gui = Bukkit.createInventory(null, InventoryType.HOPPER, Component.text("Block Shuffle Settings", NamedTextColor.DARK_GRAY, net.kyori.adventure.text.format.TextDecoration.BOLD));
 
-        gui.setItem(1, createOption(Material.CLOCK, "Round Time", roundTimeMinutes + " min", NamedTextColor.GOLD));
+        String timeDisplay = switch (roundTimeSeconds) {
+            case 30 -> "30 sec";
+            case 60 -> "1 min";
+            case 180 -> "3 min";
+            case 300 -> "5 min";
+            default -> (roundTimeSeconds / 60) + " min";
+        };
+
+        gui.setItem(1, createOption(Material.CLOCK, "Round Time", timeDisplay, NamedTextColor.GOLD));
         gui.setItem(2, createOption(Material.IRON_SWORD, "PvP", pvpEnabled ? "ON" : "OFF", pvpEnabled ? NamedTextColor.GREEN : NamedTextColor.RED));
         gui.setItem(3, createOption(Material.COMPASS, "Mode", gameMode, NamedTextColor.LIGHT_PURPLE));
 
@@ -76,12 +86,22 @@ public class SettingsGUI implements Listener {
 
         switch (clicked.getType()) {
             case CLOCK -> {
-                roundTimeMinutes = (roundTimeMinutes == 5) ? 3 : 5;
-                broadcast(prefixedMessage(Component.text("Round Time set to " + roundTimeMinutes + " minutes", NamedTextColor.AQUA)));
+                timeOptionIndex = (timeOptionIndex + 1) % roundTimeOptions.length;
+                roundTimeSeconds = roundTimeOptions[timeOptionIndex];
+
+                String timeStr = switch (roundTimeSeconds) {
+                    case 30 -> "30 seconds";
+                    case 60 -> "1 minute";
+                    case 180 -> "3 minutes";
+                    case 300 -> "5 minutes";
+                    default -> (roundTimeSeconds / 60) + " minutes";
+                };
+
+                broadcast(prefixedMessage(Component.text("Round Time set to " + timeStr, NamedTextColor.AQUA)));
             }
             case IRON_SWORD -> {
                 pvpEnabled = !pvpEnabled;
-                broadcast(prefixedMessage(Component.text("PvP toggled to " + (pvpEnabled ? "ON" : "OFF"), NamedTextColor.AQUA)));
+                broadcast(prefixedMessage(Component.text("PvP set to " + (pvpEnabled ? "ON" : "OFF"), NamedTextColor.AQUA)));
             }
             case COMPASS -> {
                 gameMode = gameMode.equals("Classic") ? "Continuous" : "Classic";
@@ -104,9 +124,12 @@ public class SettingsGUI implements Listener {
         }
     }
 
+    public boolean isContinuousMode() {
+        return gameMode.equalsIgnoreCase("Continuous");
+    }
 
     public int getRoundTimeTicks() {
-        return roundTimeMinutes * 60 * 20;
+        return roundTimeSeconds * 20;
     }
 
     public boolean isPvpEnabled() {
