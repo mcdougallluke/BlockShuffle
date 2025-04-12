@@ -8,6 +8,7 @@ import org.lukeeirl.blockShuffle.commands.SkipBlockCommand;
 import org.lukeeirl.blockShuffle.events.PlayerListener;
 import org.lukeeirl.blockShuffle.game.GameManager;
 import org.lukeeirl.blockShuffle.game.PlayerTracker;
+import org.lukeeirl.blockShuffle.ui.SettingsGUI;
 
 import java.io.File;
 import java.util.Objects;
@@ -29,8 +30,8 @@ public final class BlockShuffle extends JavaPlugin {
         PlayerTracker playerTracker = new PlayerTracker();
         GameManager gameManager = new GameManager(playerTracker, this, settings);
         PlayerListener playerListener = new PlayerListener(this, playerTracker, gameManager);
-
-        Objects.requireNonNull(this.getCommand("blockshuffle")).setExecutor(new BlockShuffleCommand(playerTracker, gameManager));
+        SettingsGUI settingsGUI = new SettingsGUI(this);
+        Objects.requireNonNull(this.getCommand("blockshuffle")).setExecutor(new BlockShuffleCommand(playerTracker, gameManager, settingsGUI));
         Objects.requireNonNull(this.getCommand("skipblock")).setExecutor(new SkipBlockCommand(gameManager, playerTracker));
         Objects.requireNonNull(this.getCommand("lobby")).setExecutor(new LobbyCommand(playerTracker, gameManager));
 

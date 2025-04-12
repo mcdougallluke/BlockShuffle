@@ -12,6 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import org.lukeeirl.blockShuffle.BlockShuffle;
 import org.lukeeirl.blockShuffle.game.GameManager;
 import org.lukeeirl.blockShuffle.game.PlayerTracker;
+import org.lukeeirl.blockShuffle.ui.SettingsGUI;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -25,13 +26,16 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
 
     private final PlayerTracker playerTracker;
     private final GameManager gameManager;
+    private final SettingsGUI settingsGUI;
 
     public BlockShuffleCommand(
             PlayerTracker playerTracker,
-            GameManager gameManager
+            GameManager gameManager,
+            SettingsGUI settingsGUI
     ) {
         this.playerTracker = playerTracker;
         this.gameManager = gameManager;
+        this.settingsGUI = settingsGUI;
     }
 
     @Override
@@ -85,6 +89,14 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
                 gameManager.startGame();
                 break;
 
+            case "settings":
+                if (!player.hasPermission("blockshuffle.admin")) {
+                    player.sendMessage(Component.text("You do not have permission to access settings.", NamedTextColor.RED));
+                    return true;
+                }
+                settingsGUI.openSettingsMenu(player);
+                break;
+
             case "stop":
                 if (!player.hasPermission("blockshuffle.admin")) {
                     player.sendMessage(Component.text("You do not have permission to stop the game.", NamedTextColor.RED));
@@ -130,7 +142,7 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
             String[] args
     ) {
         if (args.length == 1) {
-            List<String> subcommands = Arrays.asList("ready", "start", "stop", "spectate", "readyall");
+            List<String> subcommands = Arrays.asList("ready", "settings", "start", "stop", "spectate", "readyall");
 
             return subcommands.stream()
                     .filter(cmd -> cmd.startsWith(args[0].toLowerCase()))
