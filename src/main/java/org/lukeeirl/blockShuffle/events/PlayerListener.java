@@ -66,7 +66,7 @@ public class PlayerListener implements Listener {
     public void onPlayerJoinEvent(PlayerJoinEvent event) {
         Player player = event.getPlayer();
 
-        if (plugin.isInProgress()) {
+        if (gameManager.isInProgress()) {
             gameManager.playerJoined(player);
         }
     }
@@ -77,7 +77,7 @@ public class PlayerListener implements Listener {
         UUID uuid = player.getUniqueId();
         World currentGameWorld = gameManager.getCurrentGameWorld();
 
-        if (!plugin.isInProgress() || !playerTracker.getUsersInGame().contains(uuid) || currentGameWorld == null) {
+        if (!gameManager.isInProgress() || !playerTracker.getUsersInGame().contains(uuid) || currentGameWorld == null) {
             return;
         }
 
@@ -104,15 +104,17 @@ public class PlayerListener implements Listener {
 
         World currentGameWorld = gameManager.getCurrentGameWorld();
         World lobbyWorld = gameManager.getLobbyWorld();
-        if (currentGameWorld != null &&
-                damager.getWorld().equals(currentGameWorld) &&
-                target.getWorld().equals(currentGameWorld)) {
+
+        if (lobbyWorld != null && damager.getWorld().equals(lobbyWorld)) {
             event.setCancelled(true);
+            return;
         }
 
-        if (lobbyWorld != null &&
-                damager.getWorld().equals(lobbyWorld) &&
-                target.getWorld().equals(lobbyWorld)) {
+        // Cancel if in game world and PvP is disabled
+        if (currentGameWorld != null &&
+                damager.getWorld().equals(currentGameWorld) &&
+                target.getWorld().equals(currentGameWorld) &&
+                !gameManager.isPvpEnabled()) {
             event.setCancelled(true);
         }
     }

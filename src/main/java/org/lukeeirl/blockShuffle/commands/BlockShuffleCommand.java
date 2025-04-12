@@ -12,6 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import org.lukeeirl.blockShuffle.BlockShuffle;
 import org.lukeeirl.blockShuffle.game.GameManager;
 import org.lukeeirl.blockShuffle.game.PlayerTracker;
+import org.lukeeirl.blockShuffle.ui.SettingsGUI;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -25,16 +26,16 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
 
     private final PlayerTracker playerTracker;
     private final GameManager gameManager;
-    private final BlockShuffle plugin;
+    private final SettingsGUI settingsGUI;
 
     public BlockShuffleCommand(
             PlayerTracker playerTracker,
             GameManager gameManager,
-            BlockShuffle plugin
+            SettingsGUI settingsGUI
     ) {
         this.playerTracker = playerTracker;
         this.gameManager = gameManager;
-        this.plugin = plugin;
+        this.settingsGUI = settingsGUI;
     }
 
     @Override
@@ -72,7 +73,7 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
 
-                if (plugin.isInProgress()) {
+                if (gameManager.isInProgress()) {
                     player.sendMessage(Component.text("A game is already in progress.", NamedTextColor.RED));
                     return true;
                 }
@@ -82,10 +83,18 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
 
-                plugin.setInProgress(true);
+                gameManager.setInProgress(true);
                 BlockShuffle.logger.info("[Game State] Admin started game — setInProgress(true) from /blockshuffle start");
                 Bukkit.broadcast(prefixedMessage(Component.text("The game is starting...", NamedTextColor.GREEN)));
                 gameManager.startGame();
+                break;
+
+            case "settings":
+                if (!player.hasPermission("blockshuffle.admin")) {
+                    player.sendMessage(Component.text("You do not have permission to access settings.", NamedTextColor.RED));
+                    return true;
+                }
+                settingsGUI.openSettingsMenu(player);
                 break;
 
             case "stop":
@@ -94,7 +103,7 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
 
-                if (!plugin.isInProgress()) {
+                if (!gameManager.isInProgress()) {
                     player.sendMessage(Component.text("No game is currently running.", NamedTextColor.RED));
                     return true;
                 }
@@ -133,7 +142,7 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
             String[] args
     ) {
         if (args.length == 1) {
-            List<String> subcommands = Arrays.asList("ready", "start", "stop", "spectate", "readyall");
+            List<String> subcommands = Arrays.asList("ready", "settings", "start", "stop", "spectate", "readyall");
 
             return subcommands.stream()
                     .filter(cmd -> cmd.startsWith(args[0].toLowerCase()))

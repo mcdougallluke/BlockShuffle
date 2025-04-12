@@ -11,6 +11,7 @@ import org.bukkit.boss.BossBar;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.lukeeirl.blockShuffle.BlockShuffle;
+import org.lukeeirl.blockShuffle.ui.SettingsGUI;
 
 import java.time.Duration;
 import java.util.*;
@@ -27,9 +28,9 @@ public class GameManager {
     private final Random random;
     private final WorldService worldService;
     private final PlayerTracker tracker;
+    private final SettingsGUI settingsGUI;
 
-    private final int ticksInRound = 6000; // 6000 ticks = 300 sec = 5 min
-
+    private int ticksInRound = 6000; // 6000 ticks = 300 sec = 5 min
     private List<Material> materials;
     private int bossBarTask;
     private int roundEndTask;
@@ -37,21 +38,23 @@ public class GameManager {
     private long roundStartTime;
     private World currentGameWorld;
     private int roundNumber = 0;
+    private boolean inProgress;
 
-    public GameManager(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings) {
+    public GameManager(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI) {
         this.tracker = tracker;
         this.plugin = plugin;
         this.lobbyWorld = Bukkit.getWorlds().getFirst();
         this.settings = settings;
+        this.settingsGUI = settingsGUI;
         this.random = new Random();
         this.worldService = new WorldService();
     }
 
     public void startGame() {
+        this.ticksInRound = settingsGUI.getRoundTimeTicks();
         currentGameWorld = worldService.createNewWorld();
         String materialPath = "materials";
         this.materials = this.settings.getStringList(materialPath).stream().map(Material::getMaterial).collect(Collectors.toList());
-        plugin.setRoundWon(false);
 
         for (UUID uuid : tracker.getReadyPlayers()) {
             Player player = Bukkit.getPlayer(uuid);
@@ -68,7 +71,7 @@ public class GameManager {
 
     public void resetGame() {
         this.roundNumber = 0;
-        this.plugin.setInProgress(false);
+        inProgress = false;
         BlockShuffle.logger.info("[Game State] Game ended — setInProgress(false) from resetGame()");
         this.bossBar.removeAll();
         Bukkit.getScheduler().cancelTask(this.roundEndTask);
@@ -122,16 +125,14 @@ public class GameManager {
     public void playerStandingOnBlock(Player player) {
         UUID uuid = player.getUniqueId();
         Material assignedBlock = tracker.getUserMaterialMap().get(uuid);
-        if (!plugin.isRoundWon()) {
-            String blockName = formatMaterialName(assignedBlock);
-            Bukkit.broadcast(prefixedMessage(
-                    Component.text(player.getName() + " ", NamedTextColor.WHITE)
-                            .append(Component.text("stood on their block. Their block was: ", NamedTextColor.GREEN))
-                            .append(Component.text(blockName, NamedTextColor.GREEN, TextDecoration.BOLD))));
-            player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
-            tracker.addCompleted(uuid);
-        }
 
+        String blockName = formatMaterialName(assignedBlock);
+        Bukkit.broadcast(prefixedMessage(
+                Component.text(player.getName() + " ", NamedTextColor.WHITE)
+                        .append(Component.text("stood on their block. Their block was: ", NamedTextColor.GREEN))
+                        .append(Component.text(blockName, NamedTextColor.GREEN, TextDecoration.BOLD))));
+        player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
+        tracker.addCompleted(uuid);
         tracker.getUserMaterialMap().remove(uuid);
 
         if (tracker.getCompletedUsers().size() == tracker.getUsersInGame().size()) {
@@ -268,20 +269,23 @@ public class GameManager {
         this.roundStartTime = System.currentTimeMillis();
 
         for (UUID uuid : tracker.getUsersInGame()) {
-            Player player = Bukkit.getPlayer(uuid);
-            if (player != null) {
-                Material randomBlock = getRandomMaterial();
-                BlockShuffle.logger.log(Level.INFO, "[Round Start] " + player.getName() + " " + randomBlock);
-                String randomBlockName = formatMaterialName(randomBlock);
-                tracker.assignBlock(uuid, randomBlock);
-                BlockShuffle.logger.log(Level.INFO, player.getName() + " got " + randomBlockName);
-                player.sendMessage(prefixedMessage(
-                        Component.text("Your block is: ", NamedTextColor.GREEN)
-                                .append(Component.text(randomBlockName, NamedTextColor.GREEN, TextDecoration.BOLD))));
-            }
+            assignNewBlockToPlayer(uuid);
         }
 
         this.roundEndTask = Bukkit.getScheduler().scheduleSyncDelayedTask(this.plugin, this::nextRound, this.ticksInRound);
+    }
+
+    private void assignNewBlockToPlayer(UUID uuid) {
+        Player player = Bukkit.getPlayer(uuid);
+        if (player == null) return;
+
+        Material block = getRandomMaterial();
+        tracker.assignBlock(uuid, block);
+        BlockShuffle.logger.log(Level.INFO, player.getName() + " got " + formatMaterialName(block));
+        player.sendMessage(prefixedMessage(
+                Component.text("Your new block is: ", NamedTextColor.GREEN)
+                        .append(Component.text(formatMaterialName(block), NamedTextColor.GREEN, TextDecoration.BOLD))
+        ));
     }
 
     public boolean trySkip(UUID uuid) {
@@ -420,7 +424,20 @@ public class GameManager {
         BlockShuffle.logger.info("[ReadyAll] All online players have been marked as ready.");
     }
 
-    public BlockShuffle getPlugin() {
-        return plugin;
+    public boolean isInProgress() {
+        return this.inProgress;
     }
+
+    public void setInProgress(boolean inProgress) {
+        this.inProgress = inProgress;
+    }
+
+    public boolean isPvpEnabled() {
+        return settingsGUI.isPvpEnabled();
+    }
+
+    private boolean isContinuousMode() {
+        return settingsGUI.isContinuousMode();
+    }
+
 }
