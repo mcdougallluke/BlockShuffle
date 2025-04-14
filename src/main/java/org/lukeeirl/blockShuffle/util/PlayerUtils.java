@@ -25,7 +25,7 @@ public class PlayerUtils {
     public static void resetPlayerState(Player player, GameMode gameMode) {
         player.setGameMode(gameMode);
         player.getInventory().clear();
-        player.setHealth(Objects.requireNonNull(player.getAttribute(Attribute.GENERIC_MAX_HEALTH)).getValue());
+        player.setHealth(Objects.requireNonNull(player.getAttribute(Attribute.MAX_HEALTH)).getValue());
         player.setFoodLevel(20);
         player.setSaturation(5f);
         player.setExhaustion(0f);

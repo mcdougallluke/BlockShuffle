@@ -52,7 +52,8 @@ public class GameManager {
 
     public void startGame() {
         this.ticksInRound = settingsGUI.getRoundTimeTicks();
-        currentGameWorld = worldService.createNewWorld();
+        String baseWorldName = "blockshuffle_" + System.currentTimeMillis();
+        currentGameWorld = worldService.createLinkedWorlds(baseWorldName);
         String materialPath = "materials";
         this.materials = this.settings.getStringList(materialPath).stream().map(Material::getMaterial).collect(Collectors.toList());
 
@@ -229,7 +230,8 @@ public class GameManager {
                 if (player != null) {
                     String blockName = formatMaterialName(tracker.getUserMaterialMap().get(uuid));
                     Bukkit.broadcast(prefixedMessage(
-                            Component.text(player.getName() + " had: ", NamedTextColor.RED)
+                            Component.text(player.getName() + " ", NamedTextColor.WHITE)
+                                    .append(Component.text(player.getName() + " had: ", NamedTextColor.RED))
                                     .append(Component.text(blockName, NamedTextColor.RED, TextDecoration.BOLD))
                     ));
                 }

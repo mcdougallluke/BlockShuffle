@@ -38,35 +38,35 @@ public class LobbyCommand implements CommandExecutor {
             return true;
         }
 
-        UUID uuid = player.getUniqueId();
+//        UUID uuid = player.getUniqueId();
+//
+//        if (tracker.getUsersInGame().contains(uuid)) {
+//            gameManager.announceElimination(uuid);
+//
+//            // Remove the player from all relevant sets
+//            tracker.getUsersInGame().remove(uuid);
+//            tracker.getUserMaterialMap().remove(uuid);
+//            tracker.getCompletedUsers().remove(uuid);
+//            tracker.getSkippedPlayers().remove(uuid);
+//
+//            // Check if only one player is left
+//            if (tracker.getUsersInGame().size() == 1) {
+//                UUID winnerUUID = tracker.getUsersInGame().iterator().next();
+//                tracker.getCompletedUsers().add(winnerUUID);
+//                gameManager.announceWinnersAndReset();
+//                gameManager.endGameEarly();
+//            } else {
+//                gameManager.checkIfAllPlayersDone();
+//            }
+//        }
+//
+//        tracker.getSpectators().remove(uuid);
+//
+//        World lobbyWorld = gameManager.getLobbyWorld();
+//        resetPlayerState(player, GameMode.ADVENTURE);
+//        player.teleport(lobbyWorld.getSpawnLocation());
 
-        if (tracker.getUsersInGame().contains(uuid)) {
-            gameManager.announceElimination(uuid);
-
-            // Remove the player from all relevant sets
-            tracker.getUsersInGame().remove(uuid);
-            tracker.getUserMaterialMap().remove(uuid);
-            tracker.getCompletedUsers().remove(uuid);
-            tracker.getSkippedPlayers().remove(uuid);
-
-            // Check if only one player is left
-            if (tracker.getUsersInGame().size() == 1) {
-                UUID winnerUUID = tracker.getUsersInGame().iterator().next();
-                tracker.getCompletedUsers().add(winnerUUID);
-                gameManager.announceWinnersAndReset();
-                gameManager.endGameEarly();
-            } else {
-                gameManager.checkIfAllPlayersDone();
-            }
-        }
-
-        tracker.getSpectators().remove(uuid);
-
-        World lobbyWorld = gameManager.getLobbyWorld();
-        resetPlayerState(player, GameMode.ADVENTURE);
-        player.teleport(lobbyWorld.getSpawnLocation());
-
-        player.sendMessage(Component.text("You have returned to the lobby.", NamedTextColor.GREEN));
+        player.sendMessage(Component.text("dont give up " + player.getName(), NamedTextColor.GREEN));
         return true;
     }
 }
