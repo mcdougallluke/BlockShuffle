@@ -19,6 +19,9 @@ commands:
   lobby:
     description: Return to the lobby and leave the game
     usage: /<command>
+  testmsg:
+    description: Test Adventure MiniMessage styling
+    usage: /<command>
 
 permissions:
   blockshuffle.admin:
