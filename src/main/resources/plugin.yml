@@ -3,7 +3,7 @@ version: '1.0.0'
 main: org.lukeeirl.blockShuffle.BlockShuffle
 api-version: '1.21'
 authors: [ lukeeirl ]
-description: A Block Shuffle game for Minecraft 1.21
+description: A Block Shuffle game for Minecraft 1.21.5
 website: lukemcd.dev
 
 commands:
@@ -18,6 +18,9 @@ commands:
     usage: /<command>
   lobby:
     description: Return to the lobby and leave the game
+    usage: /<command>
+  testmsg:
+    description: Test Adventure MiniMessage styling
     usage: /<command>
 
 permissions:

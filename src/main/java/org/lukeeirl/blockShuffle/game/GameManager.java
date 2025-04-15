@@ -52,7 +52,8 @@ public class GameManager {
 
     public void startGame() {
         this.ticksInRound = settingsGUI.getRoundTimeTicks();
-        currentGameWorld = worldService.createNewWorld();
+        String baseWorldName = "blockshuffle_" + System.currentTimeMillis();
+        currentGameWorld = worldService.createLinkedWorlds(baseWorldName);
         String materialPath = "materials";
         this.materials = this.settings.getStringList(materialPath).stream().map(Material::getMaterial).collect(Collectors.toList());
 
@@ -178,10 +179,32 @@ public class GameManager {
         return this.lobbyWorld;
     }
 
-    public void checkIfAllPlayersDone() {
-        if (tracker.getUsersInGame().isEmpty()) return;
-        if (tracker.getCompletedUsers().containsAll(tracker.getUsersInGame())) {
-            Bukkit.getScheduler().runTask(plugin, this::nextRound);
+    public void sendPlayerToLobby(Player player) {
+        UUID uuid = player.getUniqueId();
+
+        boolean wasInGame = tracker.getUsersInGame().remove(uuid);
+        tracker.getSpectators().remove(uuid);
+        tracker.getCompletedUsers().remove(uuid);
+        tracker.getSkippedPlayers().remove(uuid);
+
+        if (wasInGame) {
+            announceElimination(uuid);
+            tracker.getUserMaterialMap().remove(uuid);
+
+            if (tracker.getUsersInGame().size() == 1) {
+                UUID winnerUUID = tracker.getUsersInGame().iterator().next();
+                tracker.getCompletedUsers().add(winnerUUID);
+                announceWinnersAndReset();
+                endGameEarly();
+            } else if (tracker.getCompletedUsers().containsAll(tracker.getUsersInGame())) {
+                Bukkit.getScheduler().cancelTask(roundEndTask);
+                nextRound();
+            }
+        }
+
+        if (lobbyWorld != null) {
+            resetPlayerState(player, GameMode.ADVENTURE);
+            player.teleport(lobbyWorld.getSpawnLocation());
         }
     }
 
@@ -192,13 +215,26 @@ public class GameManager {
     public void announceElimination(UUID uuid) {
         Player player = Bukkit.getPlayer(uuid);
         if (player != null) {
-            String blockName = formatMaterialName(tracker.getUserMaterialMap().get(uuid));
-            Bukkit.broadcast(prefixedMessage(
+            Material material = tracker.getUserMaterialMap().get(uuid);
+
+            Component message = prefixedMessage(
                     Component.text(player.getName() + " ", NamedTextColor.WHITE)
-                            .append(Component.text("got eliminated! Their block was: ", NamedTextColor.RED))
-                            .append(Component.text(blockName, NamedTextColor.RED, TextDecoration.BOLD))));
+                            .append(Component.text("got eliminated!", NamedTextColor.RED))
+            );
+
+            // Only show the block if they still had one assigned
+            if (material != null) {
+                message = prefixedMessage(
+                        Component.text(player.getName() + " ", NamedTextColor.WHITE)
+                                .append(Component.text("got eliminated! Their block was: ", NamedTextColor.RED))
+                                .append(Component.text(formatMaterialName(material), NamedTextColor.RED, TextDecoration.BOLD))
+                );
+            }
+
+            Bukkit.broadcast(message);
         }
     }
+
 
     private void eliminateIncompletePlayers() {
         Iterator<UUID> iterator = tracker.getUsersInGame().iterator();
@@ -229,7 +265,8 @@ public class GameManager {
                 if (player != null) {
                     String blockName = formatMaterialName(tracker.getUserMaterialMap().get(uuid));
                     Bukkit.broadcast(prefixedMessage(
-                            Component.text(player.getName() + " had: ", NamedTextColor.RED)
+                            Component.text(player.getName() + " ", NamedTextColor.WHITE)
+                                    .append(Component.text("had: ", NamedTextColor.RED))
                                     .append(Component.text(blockName, NamedTextColor.RED, TextDecoration.BOLD))
                     ));
                 }

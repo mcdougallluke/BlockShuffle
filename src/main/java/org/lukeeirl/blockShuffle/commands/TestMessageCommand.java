@@ -1,18 +1,14 @@
 package org.lukeeirl.blockShuffle.commands;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
-import org.lukeeirl.blockShuffle.game.GameManager;
 
-public class LobbyCommand implements CommandExecutor {
-    private final GameManager gameManager;
-
-    public LobbyCommand(GameManager gameManager) {
-        this.gameManager = gameManager;
-    }
+public class TestMessageCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(
@@ -21,13 +17,16 @@ public class LobbyCommand implements CommandExecutor {
             @NotNull String label,
             String @NotNull [] args
     ) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage("Only players can use this command.");
+        if (!(sender instanceof Player player)) return false;
+
+        if (args.length == 0) {
+            player.sendMessage(Component.text("Usage: /testmsg <minimessage>"));
             return true;
         }
 
-        gameManager.sendPlayerToLobby(player);
+        String input = String.join(" ", args);
+        Component parsed = MiniMessage.miniMessage().deserialize(input);
+        player.sendMessage(parsed);
         return true;
     }
 }
-

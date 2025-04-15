@@ -5,6 +5,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.lukeeirl.blockShuffle.commands.BlockShuffleCommand;
 import org.lukeeirl.blockShuffle.commands.LobbyCommand;
 import org.lukeeirl.blockShuffle.commands.SkipBlockCommand;
+import org.lukeeirl.blockShuffle.commands.TestMessageCommand;
 import org.lukeeirl.blockShuffle.events.PlayerListener;
 import org.lukeeirl.blockShuffle.game.GameManager;
 import org.lukeeirl.blockShuffle.game.PlayerTracker;
@@ -33,7 +34,8 @@ public final class BlockShuffle extends JavaPlugin {
         PlayerListener playerListener = new PlayerListener(this, playerTracker, gameManager);
         Objects.requireNonNull(this.getCommand("blockshuffle")).setExecutor(new BlockShuffleCommand(playerTracker, gameManager, settingsGUI));
         Objects.requireNonNull(this.getCommand("skipblock")).setExecutor(new SkipBlockCommand(gameManager, playerTracker));
-        Objects.requireNonNull(this.getCommand("lobby")).setExecutor(new LobbyCommand(playerTracker, gameManager));
+        Objects.requireNonNull(this.getCommand("lobby")).setExecutor(new LobbyCommand(gameManager));
+        Objects.requireNonNull(this.getCommand("testmsg")).setExecutor(new TestMessageCommand());
 
         this.getServer().getPluginManager().registerEvents(playerListener, this);
     }

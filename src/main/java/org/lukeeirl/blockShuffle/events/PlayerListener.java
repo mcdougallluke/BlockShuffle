@@ -8,10 +8,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.*;
 import org.lukeeirl.blockShuffle.BlockShuffle;
 import org.lukeeirl.blockShuffle.game.GameManager;
 import org.lukeeirl.blockShuffle.game.PlayerTracker;
@@ -110,12 +107,35 @@ public class PlayerListener implements Listener {
             return;
         }
 
-        // Cancel if in game world and PvP is disabled
         if (currentGameWorld != null &&
                 damager.getWorld().equals(currentGameWorld) &&
                 target.getWorld().equals(currentGameWorld) &&
                 !gameManager.isPvpEnabled()) {
             event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onPlayerPortal(PlayerPortalEvent event) {
+        Player player = event.getPlayer();
+        UUID uuid = player.getUniqueId();
+
+        if (!gameManager.isInProgress() || !playerTracker.getUsersInGame().contains(uuid)) return;
+        World current = player.getWorld();
+        World gameWorld = gameManager.getCurrentGameWorld();
+        if (gameWorld == null) return;
+
+        String baseName = gameWorld.getName();
+        if (current.getName().equals(baseName)) {
+            World nether = Bukkit.getWorld(baseName + "_nether");
+            if (nether != null) {
+                event.setTo(nether.getSpawnLocation());
+            }
+        } else if (current.getName().equals(baseName + "_nether")) {
+            World overworld = Bukkit.getWorld(baseName);
+            if (overworld != null) {
+                event.setTo(overworld.getSpawnLocation());
+            }
         }
     }
 
