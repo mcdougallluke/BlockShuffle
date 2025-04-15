@@ -30,6 +30,7 @@ public class SettingsGUI implements Listener {
     private int roundTimeSeconds = 300; // default 5 minutes
     private int timeOptionIndex = 3;
     private boolean pvpEnabled = false;
+    private boolean decreaseTime = false;
     private String gameMode = "Classic";
 
     private final Map<UUID, Inventory> openGUIs = new HashMap<>();
@@ -52,7 +53,8 @@ public class SettingsGUI implements Listener {
 
         gui.setItem(1, createOption(Material.CLOCK, "Round Time", timeDisplay, NamedTextColor.GOLD));
         gui.setItem(2, createOption(Material.IRON_SWORD, "PvP", pvpEnabled ? "ON" : "OFF", pvpEnabled ? NamedTextColor.GREEN : NamedTextColor.RED));
-        gui.setItem(3, createOption(Material.COMPASS, "Mode", gameMode, NamedTextColor.LIGHT_PURPLE));
+        gui.setItem(3, createOption(Material.REPEATER, "Decrease Time", decreaseTime ? "ON" : "OFF", decreaseTime ? NamedTextColor.GREEN : NamedTextColor.RED));
+        gui.setItem(4, createOption(Material.COMPASS, "Mode", gameMode, NamedTextColor.LIGHT_PURPLE));
 
         openGUIs.put(player.getUniqueId(), gui);
         player.openInventory(gui);
@@ -103,6 +105,10 @@ public class SettingsGUI implements Listener {
                 pvpEnabled = !pvpEnabled;
                 broadcast(prefixedMessage(Component.text("PvP set to " + (pvpEnabled ? "ON" : "OFF"), NamedTextColor.AQUA)));
             }
+            case REPEATER -> {
+                decreaseTime = !decreaseTime;
+                broadcast(prefixedMessage(Component.text("Decrease Time set to " + (decreaseTime ? "ON" : "OFF"), NamedTextColor.AQUA)));
+            }
             case COMPASS -> {
                 gameMode = gameMode.equals("Classic") ? "Continuous" : "Classic";
                 broadcast(prefixedMessage(Component.text("Game Mode set to " + gameMode, NamedTextColor.AQUA)));
@@ -124,15 +130,11 @@ public class SettingsGUI implements Listener {
         }
     }
 
-    public boolean isContinuousMode() {
-        return gameMode.equalsIgnoreCase("Continuous");
-    }
+    public boolean isContinuousMode() { return gameMode.equalsIgnoreCase("Continuous");}
 
-    public int getRoundTimeTicks() {
-        return roundTimeSeconds * 20;
-    }
+    public int getRoundTimeTicks() { return roundTimeSeconds * 20;}
 
-    public boolean isPvpEnabled() {
-        return pvpEnabled;
-    }
+    public boolean isPvpEnabled() { return pvpEnabled; }
+
+    public boolean isDecreaseTime() { return decreaseTime; }
 }
