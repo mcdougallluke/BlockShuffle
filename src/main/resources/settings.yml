@@ -1,3 +1,8 @@
+roundTimeSeconds: 300
+pvpEnabled: false
+decreaseTime: true
+gameMode: Classic
+
 materials:
   - AIR
   - ACACIA_LEAVES
