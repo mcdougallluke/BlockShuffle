@@ -29,7 +29,6 @@ public class PlayerTracker {
 
     public void assignBlock(UUID uuid, Material material) { userMaterialMap.put(uuid, material); }
 
-    public void resetSkips() { usedSkipsThisGame.clear(); }
     public int getUsedSkips(UUID uuid) { return usedSkipsThisGame.getOrDefault(uuid, 0); }
     public void incrementSkips(UUID uuid) { usedSkipsThisGame.put(uuid, getUsedSkips(uuid) + 1); }
 
@@ -53,5 +52,6 @@ public class PlayerTracker {
         userMaterialMap.clear();
         playerEndTime.clear();
         playerRounds.clear();
+        usedSkipsThisGame.clear();
     }
 }

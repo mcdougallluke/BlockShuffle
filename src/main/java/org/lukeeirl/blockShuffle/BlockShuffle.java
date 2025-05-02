@@ -16,7 +16,6 @@ import java.util.logging.Logger;
 public final class BlockShuffle extends JavaPlugin {
     private File settingsFile;
     private File skipsFile;
-    private YamlConfiguration skipsConfig;
 
     public static Logger logger;
 
@@ -26,13 +25,11 @@ public final class BlockShuffle extends JavaPlugin {
 
         this.settingsFile = this.getDataFolder().toPath().resolve("settings.yml").toFile();
         this.createSettingsFile();
-        this.skipsFile = new File(getDataFolder(), "skips.yml");
-        if (!this.skipsFile.exists()) {
-            saveResource("skips.yml", false);
-        }
-        this.skipsConfig = YamlConfiguration.loadConfiguration(skipsFile);
+        this.skipsFile = this.getDataFolder().toPath().resolve("skips.yml").toFile();
+        this.createSkipsFile();
 
         YamlConfiguration settings = YamlConfiguration.loadConfiguration(this.settingsFile);
+        YamlConfiguration skipsConfig = YamlConfiguration.loadConfiguration(this.skipsFile);
         PlayerTracker playerTracker = new PlayerTracker();
         SettingsGUI settingsGUI = new SettingsGUI(this, this.settingsFile, settings);
         SkipManager skipManager = new SkipManager(skipsFile, skipsConfig);
@@ -55,6 +52,12 @@ public final class BlockShuffle extends JavaPlugin {
     private void createSettingsFile() {
         if (!this.settingsFile.exists()) {
             this.saveResource("settings.yml", false);
+        }
+    }
+
+    private void createSkipsFile() {
+        if (!this.skipsFile.exists()) {
+            this.saveResource("skips.yml", false);
         }
     }
 }

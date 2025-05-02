@@ -165,35 +165,57 @@ public class ClassicBlockShuffle implements BSGameMode {
 
     @Override
     public boolean trySkip(UUID uuid) {
-        if (!tracker.getUsersInGame().contains(uuid)) return false;
-        if (tracker.getCompletedUsers().contains(uuid)) return false;
+        BlockShuffle.logger.info("[SKIP] Player " + uuid + " is attempting to skip.");
+
+        if (!tracker.getUsersInGame().contains(uuid)) {
+            BlockShuffle.logger.info("[SKIP] Player " + uuid + " is not in game. Denying skip.");
+            return false;
+        }
+
+        if (tracker.getCompletedUsers().contains(uuid)) {
+            BlockShuffle.logger.info("[SKIP] Player " + uuid + " already completed their block. Denying skip.");
+            return false;
+        }
 
         int usedSkips = tracker.getUsedSkips(uuid);
         int purchasedSkips = skipManager.getPurchasedSkips(uuid);
+        BlockShuffle.logger.info("[SKIP] usedSkips=" + usedSkips + ", purchasedSkips=" + purchasedSkips);
 
-        // One free skip per game + any purchased skips
-        int totalAllowedSkips = 1 + purchasedSkips;
-
-        if (usedSkips >= totalAllowedSkips) return false;
-
-        Player player = Bukkit.getPlayer(uuid);
-        if (player == null) return false;
-
-        Material oldBlock = tracker.getUserMaterialMap().get(uuid);
-        if (oldBlock == null) return false;
-
-        // Consume a purchased skip if over the free one
-        if (usedSkips >= 1) {
+        if (usedSkips == 0) {
+            // First skip is free
+            BlockShuffle.logger.info("[SKIP] First (free) skip being used.");
+        } else if (purchasedSkips > 0) {
+            // Beyond first, use purchased skip
+            BlockShuffle.logger.info("[SKIP] Consuming one purchased skip for " + uuid);
             skipManager.consumeSkip(uuid);
+        } else {
+            BlockShuffle.logger.info("[SKIP] No purchased skips remaining. Denying skip.");
+            return false;
         }
 
+        // Now safe to increment skip count
         tracker.incrementSkips(uuid);
+
+        Player player = Bukkit.getPlayer(uuid);
+        if (player == null) {
+            BlockShuffle.logger.warning("[SKIP] Player " + uuid + " not found online. Denying skip.");
+            return false;
+        }
+
+        Material oldBlock = tracker.getUserMaterialMap().get(uuid);
+        if (oldBlock == null) {
+            BlockShuffle.logger.warning("[SKIP] Player " + uuid + " has no assigned block. Denying skip.");
+            return false;
+        }
+
         Material newBlock = getRandomMaterial();
         tracker.assignBlock(uuid, newBlock);
         tracker.addSkipped(uuid);
 
         String oldBlockName = formatMaterialName(oldBlock);
         String newBlockName = formatMaterialName(newBlock);
+
+        BlockShuffle.logger.info("[SKIP] " + player.getName() + " skipped " + oldBlockName + " → " + newBlockName);
 
         Bukkit.broadcast(prefixedMessage(
                 Component.text(player.getName() + " ", NamedTextColor.WHITE)
@@ -204,7 +226,6 @@ public class ClassicBlockShuffle implements BSGameMode {
                 Component.text("Your new block is: ", NamedTextColor.GREEN)
                         .append(Component.text(newBlockName, NamedTextColor.GREEN, TextDecoration.BOLD))));
 
-        BlockShuffle.logger.info(player.getName() + " skipped " + oldBlockName + " and received " + newBlockName);
         return true;
     }
 

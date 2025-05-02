@@ -22,7 +22,7 @@ public class SkipManager {
 
     public void addSkips(UUID uuid, int amount) {
         int current = getPurchasedSkips(uuid);
-        config.set(uuid.toString(), current + amount);
+        config.set(uuid.toString(), Math.max(current + amount, 0));
         save();
     }
 
