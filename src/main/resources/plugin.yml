@@ -25,4 +25,4 @@ commands:
 
 permissions:
   blockshuffle.admin:
-    default: op
+    default: true

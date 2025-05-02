@@ -12,12 +12,15 @@ public class PlayerTracker {
     private final Set<UUID> spectators = new HashSet<>();
     private final Set<UUID> skippedPlayers = new HashSet<>();
     private final Map<UUID, Material> userMaterialMap = new ConcurrentHashMap<>();
-    private final Map<UUID, Integer> playerTimeRemaining = new HashMap<>();
+    private final Map<UUID, Long> playerEndTime = new HashMap<>();
+    private final Map<UUID, Integer> playerRounds = new HashMap<>();
+    private final Map<UUID, Long> playerRoundStartTime = new HashMap<>();
+    private final Map<UUID, Long> playerRoundDuration = new HashMap<>();
+
 
     public boolean isReady(UUID uuid) { return readyPlayers.contains(uuid); }
     public void setReady(UUID uuid) { readyPlayers.add(uuid); }
     public void setNotReady(UUID uuid) { readyPlayers.remove(uuid); }
-    public void setTime(UUID uuid, int ticks) { playerTimeRemaining.put(uuid, ticks); }
 
     public void addInGame(UUID uuid) { usersInGame.add(uuid); }
     public void addCompleted(UUID uuid) { completedUsers.add(uuid); }
@@ -32,8 +35,10 @@ public class PlayerTracker {
     public Set<UUID> getSpectators() { return spectators; }
     public Set<UUID> getSkippedPlayers() { return skippedPlayers; }
     public Map<UUID, Material> getUserMaterialMap() { return userMaterialMap; }
-    public int getTime(UUID uuid) { return playerTimeRemaining.getOrDefault(uuid, 0); }
-    public Map<UUID, Integer> getAllPlayerTimes() { return playerTimeRemaining; }
+    public Map<UUID, Long> getPlayerEndTime() { return playerEndTime; }
+    public Map<UUID, Integer> getPlayerRounds() { return playerRounds; }
+    public Map<UUID, Long> getPlayerRoundStartTime() { return playerRoundStartTime; }
+    public Map<UUID, Long> getPlayerRoundDuration() { return playerRoundDuration; }
 
     public void clearAll() {
         readyPlayers.clear();
@@ -42,10 +47,7 @@ public class PlayerTracker {
         spectators.clear();
         skippedPlayers.clear();
         userMaterialMap.clear();
-        playerTimeRemaining.clear();
-    }
-
-    public void reduceTime(UUID uuid, int ticks) {
-        playerTimeRemaining.put(uuid, getTime(uuid) - ticks);
+        playerEndTime.clear();
+        playerRounds.clear();
     }
 }

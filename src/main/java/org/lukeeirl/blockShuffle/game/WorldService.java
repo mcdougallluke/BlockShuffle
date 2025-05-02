@@ -36,6 +36,8 @@ public class WorldService {
             if (world != null) {
                 world.setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true);
                 world.setGameRule(GameRule.DO_INSOMNIA, false);
+                world.setViewDistance(32);
+                world.setSimulationDistance(32);
             }
         }
 
