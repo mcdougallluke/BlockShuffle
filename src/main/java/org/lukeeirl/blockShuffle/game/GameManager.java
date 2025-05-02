@@ -1,5 +1,7 @@
 package org.lukeeirl.blockShuffle.game;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -8,9 +10,12 @@ import org.lukeeirl.blockShuffle.ui.SettingsGUI;
 
 import java.util.*;
 
+import static org.lukeeirl.blockShuffle.util.PlayerUtils.prefixedMessage;
+
 public class GameManager {
     private final World lobbyWorld;;
     private final SettingsGUI settingsGUI;
+    private final PlayerTracker tracker;
     private final ClassicBlockShuffle classicMode;
     private final ContinuousBlockShuffle continuousMode;
 
@@ -18,6 +23,7 @@ public class GameManager {
 
     public GameManager(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI) {
         this.settingsGUI = settingsGUI;
+        this.tracker = tracker;
         WorldService worldService = new WorldService();
         this.lobbyWorld = Bukkit.getWorlds().getFirst();
 
@@ -66,9 +72,16 @@ public class GameManager {
     }
 
     public void readyAllPlayers() {
-        if (activeMode != null) {
-            activeMode.readyAllPlayers();
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            UUID uuid = player.getUniqueId();
+            if (!tracker.getReadyPlayers().contains(uuid)) {
+                tracker.getReadyPlayers().add(uuid);
+                Bukkit.broadcast(prefixedMessage(
+                        Component.text(player.getName() + " ", NamedTextColor.WHITE)
+                                .append(Component.text("is now ready (forced)", NamedTextColor.GREEN))));
+            }
         }
+        BlockShuffle.logger.info("[ReadyAll] All online players have been marked as ready.");
     }
 
     public World getCurrentGameWorld() {
@@ -87,12 +100,6 @@ public class GameManager {
             return activeMode.isInProgress();
         }
         return false;
-    }
-
-    public void setInProgress(boolean inProgress) {
-        if (activeMode != null) {
-            activeMode.setInProgress(inProgress);
-        }
     }
 
     public boolean isPvpEnabled() {

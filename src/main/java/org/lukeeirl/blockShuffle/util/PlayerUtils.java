@@ -77,6 +77,10 @@ public class PlayerUtils {
                 .append(message);
     }
 
+    public static Component blockShuffleTitle() {
+        return mm.deserialize("<gradient:#ADFAFF:#80A8FF><bold>Block Shuffle</gradient>");
+    }
+
     public static Component formatStatusMessage(String playerName, String status, NamedTextColor statusColor) {
         return mm.deserialize("<dark_gray>[<gradient:#ADFAFF:#80A8FF>Block Shuffle</gradient><dark_gray>] <white>»</white> ")
                 .append(Component.text(playerName + " ", NamedTextColor.WHITE))

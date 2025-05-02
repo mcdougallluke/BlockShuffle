@@ -56,6 +56,7 @@ public class ClassicBlockShuffle implements BSGameMode {
 
     @Override
     public void startGame() {
+        this.inProgress = true;
         this.ticksInRound = settingsGUI.getRoundTimeTicks();
         String baseWorldName = "blockshuffle_" + System.currentTimeMillis();
         currentGameWorld = worldService.createLinkedWorlds(baseWorldName);
@@ -189,27 +190,8 @@ public class ClassicBlockShuffle implements BSGameMode {
     }
 
     @Override
-    public void readyAllPlayers() {
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            UUID uuid = player.getUniqueId();
-            if (!tracker.getReadyPlayers().contains(uuid)) {
-                tracker.getReadyPlayers().add(uuid);
-                Bukkit.broadcast(prefixedMessage(
-                        Component.text(player.getName() + " ", NamedTextColor.WHITE)
-                                .append(Component.text("is now ready (forced)", NamedTextColor.GREEN))));
-            }
-        }
-        BlockShuffle.logger.info("[ReadyAll] All online players have been marked as ready.");
-    }
-
-    @Override
     public boolean isInProgress() {
         return this.inProgress;
-    }
-
-    @Override
-    public void setInProgress(boolean value) {
-        this.inProgress = value;
     }
 
     @Override
@@ -376,18 +358,19 @@ public class ClassicBlockShuffle implements BSGameMode {
     }
 
     private void assignNewBlockToPlayer(UUID uuid) {
-        Player player = Bukkit.getPlayer(uuid);
-        if (player == null) return;
-
         Material block = getRandomMaterial();
-        String blockName = formatMaterialName(block);
         tracker.assignBlock(uuid, block);
-        BlockShuffle.logger.log(Level.INFO, player.getName() + " got " + formatMaterialName(block));
-        player.sendMessage(prefixedMessage(
-                Component.text("Your new block is: ", NamedTextColor.GREEN)
-                        .append(Component.text(blockName, NamedTextColor.GREEN, TextDecoration.BOLD))
-        ));
+        BlockShuffle.logger.log(Level.INFO, uuid + " was assigned " + formatMaterialName(block));
+
+        Player player = Bukkit.getPlayer(uuid);
+        if (player != null) {
+            String blockName = formatMaterialName(block);
+            player.sendMessage(prefixedMessage(
+                    Component.text("Your new block is: ", NamedTextColor.GREEN)
+                            .append(Component.text(blockName, NamedTextColor.GREEN, TextDecoration.BOLD))));
+        }
     }
+
 
     private void announceElimination(UUID uuid) {
         Player player = Bukkit.getPlayer(uuid);

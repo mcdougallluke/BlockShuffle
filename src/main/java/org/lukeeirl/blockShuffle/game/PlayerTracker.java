@@ -14,6 +14,9 @@ public class PlayerTracker {
     private final Map<UUID, Material> userMaterialMap = new ConcurrentHashMap<>();
     private final Map<UUID, Long> playerEndTime = new HashMap<>();
     private final Map<UUID, Integer> playerRounds = new HashMap<>();
+    private final Map<UUID, Long> playerRoundStartTime = new HashMap<>();
+    private final Map<UUID, Long> playerRoundDuration = new HashMap<>();
+
 
     public boolean isReady(UUID uuid) { return readyPlayers.contains(uuid); }
     public void setReady(UUID uuid) { readyPlayers.add(uuid); }
@@ -34,6 +37,8 @@ public class PlayerTracker {
     public Map<UUID, Material> getUserMaterialMap() { return userMaterialMap; }
     public Map<UUID, Long> getPlayerEndTime() { return playerEndTime; }
     public Map<UUID, Integer> getPlayerRounds() { return playerRounds; }
+    public Map<UUID, Long> getPlayerRoundStartTime() { return playerRoundStartTime; }
+    public Map<UUID, Long> getPlayerRoundDuration() { return playerRoundDuration; }
 
     public void clearAll() {
         readyPlayers.clear();

@@ -16,7 +16,6 @@ import org.lukeeirl.blockShuffle.game.PlayerTracker;
 import java.util.UUID;
 
 public class PlayerListener implements Listener {
-
     private final BlockShuffle plugin;
     private final PlayerTracker playerTracker;
     private final GameManager gameManager;
@@ -55,8 +54,7 @@ public class PlayerListener implements Listener {
 
     @EventHandler
     public void onPlayerQuitEvent(PlayerQuitEvent event) {
-        UUID playerUUID = event.getPlayer().getUniqueId();
-        playerTracker.getSpectators().remove(playerUUID);
+
     }
 
     @EventHandler

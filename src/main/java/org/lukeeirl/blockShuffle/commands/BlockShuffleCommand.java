@@ -83,7 +83,6 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
 
-                gameManager.setInProgress(true);
                 BlockShuffle.logger.info("[Game State] Admin started game — setInProgress(true) from /blockshuffle start");
                 Bukkit.broadcast(prefixedMessage(Component.text("The game is starting...", NamedTextColor.GREEN)));
                 gameManager.startGame();

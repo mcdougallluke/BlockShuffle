@@ -12,8 +12,6 @@ public interface BSGameMode {
     void playerJoined(Player player);
     void sendPlayerToLobby(Player player);
     boolean trySkip(UUID uuid);
-    void readyAllPlayers();
     boolean isInProgress();
-    void setInProgress(boolean value);
     World getCurrentGameWorld();
 }
