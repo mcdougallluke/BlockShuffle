@@ -5,6 +5,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -15,6 +16,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -25,20 +28,32 @@ import static org.lukeeirl.blockShuffle.util.PlayerUtils.prefixedMessage;
 public class SettingsGUI implements Listener {
 
     private final Plugin plugin;
+    private final File settingsFile;
+    private final YamlConfiguration settings;
     private final int[] roundTimeOptions = {30, 60, 180, 300};
 
-    private int roundTimeSeconds = 300; // default 5 minutes
-    private int timeOptionIndex = 3;
-    private boolean pvpEnabled = false;
-    private boolean decreaseTime = false;
-    private String gameMode = "Classic";
+    private int roundTimeSeconds;
+    private int timeOptionIndex;
+    private boolean pvpEnabled;
+    private boolean decreaseTime;
+    private String gameMode;
 
     private final Map<UUID, Inventory> openGUIs = new HashMap<>();
 
-    public SettingsGUI(Plugin plugin) {
+    public SettingsGUI(Plugin plugin, File settingsFile, YamlConfiguration settings) {
         this.plugin = plugin;
+        this.settingsFile = settingsFile;
+        this.settings = settings;
+
+        this.roundTimeSeconds = settings.getInt("roundTimeSeconds", 300);
+        this.timeOptionIndex = findTimeIndex(roundTimeSeconds);
+        this.pvpEnabled = settings.getBoolean("pvpEnabled", false);
+        this.decreaseTime = settings.getBoolean("decreaseTime", false);
+        this.gameMode = settings.getString("gameMode", "Classic");
+
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
+
 
     public void openSettingsMenu(Player player) {
         Inventory gui = Bukkit.createInventory(null, InventoryType.HOPPER, Component.text("Block Shuffle Settings", NamedTextColor.DARK_GRAY, net.kyori.adventure.text.format.TextDecoration.BOLD));
@@ -115,7 +130,26 @@ public class SettingsGUI implements Listener {
             }
         }
 
+        settings.set("roundTimeSeconds", roundTimeSeconds);
+        settings.set("pvpEnabled", pvpEnabled);
+        settings.set("decreaseTime", decreaseTime);
+        settings.set("gameMode", gameMode);
+
+        try {
+            settings.save(settingsFile);
+        } catch (IOException e) {
+            plugin.getLogger().severe("Failed to save settings.yml: " + e.getMessage());
+        }
+
+
         Bukkit.getScheduler().runTaskLater(plugin, this::refreshAllOpenMenus, 1L);
+    }
+
+    private int findTimeIndex(int time) {
+        for (int i = 0; i < roundTimeOptions.length; i++) {
+            if (roundTimeOptions[i] == time) return i;
+        }
+        return 3;
     }
 
     private void refreshAllOpenMenus() {
