@@ -12,6 +12,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.lukeeirl.blockShuffle.BlockShuffle;
 import org.lukeeirl.blockShuffle.ui.SettingsGUI;
+import org.lukeeirl.blockShuffle.util.SkipManager;
 
 import java.time.Duration;
 import java.util.Iterator;
@@ -30,6 +31,7 @@ public class ClassicBlockShuffle implements BSGameMode {
     private final YamlConfiguration settings;
     private final SettingsGUI settingsGUI;
     private final WorldService worldService;
+    private final SkipManager skipManager;
     private final World lobbyWorld;
     private final Random random;
 
@@ -44,13 +46,14 @@ public class ClassicBlockShuffle implements BSGameMode {
     private World currentGameWorld;
     private boolean inProgress;
 
-    public ClassicBlockShuffle(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI, WorldService worldService, World lobbyWorld) {
+    public ClassicBlockShuffle(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI, WorldService worldService, World lobbyWorld, SkipManager skipManager) {
         this.tracker = tracker;
         this.plugin = plugin;
         this.settings = settings;
         this.settingsGUI = settingsGUI;
         this.worldService = worldService;
         this.lobbyWorld = lobbyWorld;
+        this.skipManager = skipManager;
         this.random = new Random();
     }
 
@@ -163,13 +166,28 @@ public class ClassicBlockShuffle implements BSGameMode {
     @Override
     public boolean trySkip(UUID uuid) {
         if (!tracker.getUsersInGame().contains(uuid)) return false;
-        if (tracker.getSkippedPlayers().contains(uuid)) return false;
         if (tracker.getCompletedUsers().contains(uuid)) return false;
+
+        int usedSkips = tracker.getUsedSkips(uuid);
+        int purchasedSkips = skipManager.getPurchasedSkips(uuid);
+
+        // One free skip per game + any purchased skips
+        int totalAllowedSkips = 1 + purchasedSkips;
+
+        if (usedSkips >= totalAllowedSkips) return false;
 
         Player player = Bukkit.getPlayer(uuid);
         if (player == null) return false;
 
         Material oldBlock = tracker.getUserMaterialMap().get(uuid);
+        if (oldBlock == null) return false;
+
+        // Consume a purchased skip if over the free one
+        if (usedSkips >= 1) {
+            skipManager.consumeSkip(uuid);
+        }
+
+        tracker.incrementSkips(uuid);
         Material newBlock = getRandomMaterial();
         tracker.assignBlock(uuid, newBlock);
         tracker.addSkipped(uuid);
@@ -185,6 +203,7 @@ public class ClassicBlockShuffle implements BSGameMode {
         player.sendMessage(prefixedMessage(
                 Component.text("Your new block is: ", NamedTextColor.GREEN)
                         .append(Component.text(newBlockName, NamedTextColor.GREEN, TextDecoration.BOLD))));
+
         BlockShuffle.logger.info(player.getName() + " skipped " + oldBlockName + " and received " + newBlockName);
         return true;
     }

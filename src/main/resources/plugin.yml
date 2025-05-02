@@ -16,13 +16,21 @@ commands:
   skipblock:
     description: Skip your assigned block once per game
     usage: /<command>
+    aliases: [skip]
   lobby:
     description: Return to the lobby and leave the game
     usage: /<command>
+    aliases: [l]
   testmsg:
     description: Test Adventure MiniMessage styling
     usage: /<command>
+  giveskips:
+    description: Give a player skips
+    usage: /<command> <player> <amount>
+    permission: blockshuffle.giveskips
 
 permissions:
   blockshuffle.admin:
     default: true
+  blockshuffle.giveskips:
+    default: op
