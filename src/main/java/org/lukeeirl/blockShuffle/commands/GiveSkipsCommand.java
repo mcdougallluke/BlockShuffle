@@ -29,6 +29,11 @@ public class GiveSkipsCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (sender instanceof Player && !sender.getName().equals("lukeeIRL")) {
+            sender.sendMessage(Component.text("You don't have permission.", NamedTextColor.RED));
+            return true;
+        }
+
         if (args.length < 2) {
             sender.sendMessage(Component.text("Usage: /giveskips <player> <amount>", NamedTextColor.YELLOW));
             return true;

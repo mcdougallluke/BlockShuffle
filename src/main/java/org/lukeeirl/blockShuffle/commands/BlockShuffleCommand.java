@@ -2,6 +2,7 @@ package org.lukeeirl.blockShuffle.commands;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -45,13 +46,38 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
             @NotNull String label,
             String[] args
     ) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("This command can only be used by players.", NamedTextColor.RED));
+        if (args.length == 0) {
+            sender.sendMessage(Component.text("Usage: /blockshuffle <ready|start|stop|spectate>", NamedTextColor.YELLOW));
             return true;
         }
 
-        if (args.length == 0) {
-            player.sendMessage(Component.text("Usage: /blockshuffle <ready|start|stop|spectate>", NamedTextColor.YELLOW));
+        if (args[0].equalsIgnoreCase("broadcast")) {
+            if (!sender.hasPermission("blockshuffle.admin")) {
+                sender.sendMessage(Component.text("You do not have permission to broadcast messages.", NamedTextColor.RED));
+                return true;
+            }
+
+            if (args.length < 2) {
+                sender.sendMessage(Component.text("Usage: /blockshuffle broadcast <message>", NamedTextColor.YELLOW));
+                return true;
+            }
+
+            StringBuilder messageBuilder = new StringBuilder();
+            for (int i = 1; i < args.length; i++) {
+                messageBuilder.append(args[i]).append(" ");
+            }
+
+            String rawMessage = messageBuilder.toString().trim();
+
+            MiniMessage miniMessage = MiniMessage.miniMessage();
+            Component formattedMessage = miniMessage.deserialize(rawMessage);
+
+            Bukkit.broadcast(prefixedMessage(formattedMessage));
+            return true;
+        }
+
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(Component.text("This command can only be used by players.", NamedTextColor.RED));
             return true;
         }
 
@@ -141,7 +167,7 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
             String[] args
     ) {
         if (args.length == 1) {
-            List<String> subcommands = Arrays.asList("ready", "settings", "start", "stop", "spectate", "readyall");
+            List<String> subcommands = Arrays.asList("ready", "settings", "start", "stop", "spectate", "readyall", "broadcast");
 
             return subcommands.stream()
                     .filter(cmd -> cmd.startsWith(args[0].toLowerCase()))
