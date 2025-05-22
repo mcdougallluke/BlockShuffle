@@ -113,26 +113,60 @@ public class PlayerListener implements Listener {
         }
     }
 
-    @EventHandler
+    @EventHandler(ignoreCancelled = true)
     public void onPlayerPortal(PlayerPortalEvent event) {
         Player player = event.getPlayer();
-        UUID uuid = player.getUniqueId();
+        UUID id = player.getUniqueId();
+        if (!gameManager.isInProgress() || !playerTracker.getUsersInGame().contains(id)) return;
 
-        if (!gameManager.isInProgress() || !playerTracker.getUsersInGame().contains(uuid)) return;
-        World current = player.getWorld();
-        World gameWorld = gameManager.getCurrentGameWorld();
-        if (gameWorld == null) return;
+        World fromWorld = event.getFrom().getWorld();
+        String base = gameManager.getCurrentGameWorld().getName();
 
-        String baseName = gameWorld.getName();
-        if (current.getName().equals(baseName)) {
-            World nether = Bukkit.getWorld(baseName + "_nether");
-            if (nether != null) {
-                event.setTo(nether.getSpawnLocation());
+        switch (event.getCause()) {
+            case NETHER_PORTAL -> {
+                // Overworld → Nether
+                if (fromWorld.getName().equals(base)) {
+                    World nether = Bukkit.getWorld(base + "_nether");
+                    if (nether != null) {
+                        Location loc = event.getTo(); // already scaled from overworld → nether
+                        event.setTo(new Location(nether, loc.getX(), loc.getY(), loc.getZ()));
+                        event.setCanCreatePortal(true);
+                        event.setSearchRadius(128);
+                        event.setCreationRadius(16);
+                    }
+                }
+                // Nether → Overworld
+                else if (fromWorld.getName().equals(base + "_nether")) {
+                    World overworld = Bukkit.getWorld(base);
+                    if (overworld != null) {
+                        Location loc = event.getTo(); // scaled nether → overworld
+                        event.setTo(new Location(overworld, loc.getX(), loc.getY(), loc.getZ()));
+                        event.setCanCreatePortal(true);
+                        event.setSearchRadius(128);
+                        event.setCreationRadius(16);
+                    }
+                }
             }
-        } else if (current.getName().equals(baseName + "_nether")) {
-            World overworld = Bukkit.getWorld(baseName);
-            if (overworld != null) {
-                event.setTo(overworld.getSpawnLocation());
+
+            case END_PORTAL -> {
+                // Overworld → The End
+                if (fromWorld.getName().equals(base)) {
+                    World theEnd = Bukkit.getWorld(base + "_the_end");
+                    if (theEnd != null) {
+                        event.setTo(theEnd.getSpawnLocation());
+                    }
+                }
+                // The End → Overworld
+                else if (fromWorld.getName().equals(base + "_the_end")) {
+                    World overworld = Bukkit.getWorld(base);
+                    if (overworld != null) {
+                        event.setTo(overworld.getSpawnLocation());
+                    }
+                }
+            }
+
+            default -> {
+                // leave END_GATEWAY, etc. to vanilla
             }
         }
     }
