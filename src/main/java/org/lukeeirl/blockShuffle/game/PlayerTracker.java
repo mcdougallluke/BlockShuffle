@@ -16,7 +16,7 @@ public class PlayerTracker {
     private final Map<UUID, Integer> playerRounds = new HashMap<>();
     private final Map<UUID, Long> playerRoundStartTime = new HashMap<>();
     private final Map<UUID, Long> playerRoundDuration = new HashMap<>();
-
+    private final Map<UUID, Integer> usedSkipsThisGame = new HashMap<>();
 
     public boolean isReady(UUID uuid) { return readyPlayers.contains(uuid); }
     public void setReady(UUID uuid) { readyPlayers.add(uuid); }
@@ -28,6 +28,9 @@ public class PlayerTracker {
     public void addSkipped(UUID uuid) { skippedPlayers.add(uuid); }
 
     public void assignBlock(UUID uuid, Material material) { userMaterialMap.put(uuid, material); }
+
+    public int getUsedSkips(UUID uuid) { return usedSkipsThisGame.getOrDefault(uuid, 0); }
+    public void incrementSkips(UUID uuid) { usedSkipsThisGame.put(uuid, getUsedSkips(uuid) + 1); }
 
     public Set<UUID> getReadyPlayers() { return readyPlayers; }
     public Set<UUID> getUsersInGame() { return usersInGame; }
@@ -49,5 +52,6 @@ public class PlayerTracker {
         userMaterialMap.clear();
         playerEndTime.clear();
         playerRounds.clear();
+        usedSkipsThisGame.clear();
     }
 }
