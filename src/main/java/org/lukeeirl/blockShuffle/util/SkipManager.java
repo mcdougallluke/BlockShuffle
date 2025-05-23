@@ -25,7 +25,7 @@ public class SkipManager {
     public void addSkips(UUID uuid, int amount) {
         int current = getPurchasedSkips(uuid);
         config.set(uuid.toString(), Math.max(current + amount, 0));
-        stats.get(uuid).addSkips(amount);
+        stats.recordSkips(uuid, amount);
         stats.save(uuid);
         save();
     }

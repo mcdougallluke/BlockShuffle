@@ -37,6 +37,29 @@ public class StatsManager {
         }
     }
 
+    public void recordPlayed(UUID uuid) {
+        PlayerStats old = get(uuid);
+        PlayerStats updated = old.incrementPlayed();
+        cache.put(uuid, updated);
+        save(uuid);
+    }
+
+    /** Record that this player has won one more game. */
+    public void recordWin(UUID uuid) {
+        PlayerStats old = get(uuid);
+        PlayerStats updated = old.incrementWon();
+        cache.put(uuid, updated);
+        save(uuid);
+    }
+
+    /** Record that this player has purchased n more skips. */
+    public void recordSkips(UUID uuid, int n) {
+        PlayerStats old = get(uuid);
+        PlayerStats updated = old.addSkips(n);
+        cache.put(uuid, updated);
+        save(uuid);
+    }
+
     public PlayerStats get(UUID uuid) {
         return cache.computeIfAbsent(uuid, id -> new PlayerStats());
     }

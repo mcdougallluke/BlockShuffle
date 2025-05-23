@@ -59,20 +59,27 @@ public class StatsCommand implements CommandExecutor, TabCompleter {
 
         // build one multiline component
         assert name != null;
-        Component statsMsg = mm.deserialize(
-                "<dark_gray>[<gradient:#ADFAFF:#80A8FF>Block Shuffle</gradient><dark_gray>] " +
-                        "<white>Stats for <gradient:#ADFAFF:#80A8FF><bold>" + name + "</gradient></white>\n" +
-                        "<dark_gray>»</dark_gray> <white>Games Played:    </white> " +
-                        "<gradient:#ADFAFF:#80A8FF>" + ps.gamesPlayed() + "</gradient>\n" +
-                        "<dark_gray>»</dark_gray> <white>Games Won:       </white> " +
-                        "<gradient:#ADFAFF:#80A8FF>" + ps.gamesWon() + "</gradient>\n" +
-                        "<dark_gray>»</dark_gray> <white>Skips Bought:    </white> " +
-                        "<gradient:#ADFAFF:#80A8FF>" + ps.skipsBought() + "</gradient>\n" +
-                        "<dark_gray>»</dark_gray> <white>Skips Remaining: </white> " +
-                        "<gradient:#ADFAFF:#80A8FF>" + remainingSkips + "</gradient>"
-        );
+        String raw = """
+        <dark_gray>╔═════════════╗</dark_gray>
+        <gradient:#ADFAFF:#80A8FF><bold>  Block Shuffle Stats  </bold></gradient>
+        <dark_gray>╚═════════════╝</dark_gray>
+        <gradient:#ADFAFF:#80A8FF><bold>%name%</bold></gradient><white>:</white>
+        <dark_gray>»</dark_gray> <white>Games Played:   </white><green>%played%</green>
+        <dark_gray>»</dark_gray> <white>Games Won:       </white><green>%won%</green>
+        <dark_gray>»</dark_gray> <white>Skips Bought:    </white><green>%bought%</green>
+        <dark_gray>»</dark_gray> <white>Skips Remaining: </white><green>%remaining%</green>
+        """;
+        raw = raw
+                .replace("%name%",      name)
+                .replace("%played%",    String.valueOf(ps.gamesPlayed()))
+                .replace("%won%",       String.valueOf(ps.gamesWon()))
+                .replace("%bought%",    String.valueOf(ps.skipsBought()))
+                .replace("%remaining%", String.valueOf(remainingSkips));
+
+        Component statsMsg = mm.deserialize(raw);
 
         sender.sendMessage(statsMsg);
+
         return true;
     }
 

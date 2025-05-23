@@ -70,7 +70,7 @@ public class ClassicBlockShuffle implements BSGameMode {
         this.materials = this.settings.getStringList(materialPath).stream().map(Material::getMaterial).collect(Collectors.toList());
 
         for (UUID uuid : tracker.getReadyPlayers()) {
-            stats.get(uuid).incrementPlayed();
+            stats.recordPlayed(uuid);
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && player.isOnline()) {
                 resetPlayerState(player, GameMode.SURVIVAL);
@@ -489,7 +489,7 @@ public class ClassicBlockShuffle implements BSGameMode {
                         Component.text(player.getName() + " ", NamedTextColor.WHITE)
                                 .append(Component.text("won the game!", NamedTextColor.GREEN))));
                 player.playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_DEATH, 1.0f, 1.0f);
-                stats.get(uuid).incrementWon();
+                stats.recordWin(uuid);
                 stats.save(uuid);
             }
         }
