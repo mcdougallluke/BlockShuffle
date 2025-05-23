@@ -6,8 +6,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.player.*;
 import org.lukeeirl.blockShuffle.BlockShuffle;
 import org.lukeeirl.blockShuffle.game.GameManager;
@@ -93,12 +91,6 @@ public class PlayerListener implements Listener {
         if (!(event.getEntity() instanceof Player target)) return;
 
         World currentGameWorld = gameManager.getCurrentGameWorld();
-        World lobbyWorld = gameManager.getLobbyWorld();
-
-        if (lobbyWorld != null && damager.getWorld().equals(lobbyWorld)) {
-            event.setCancelled(true);
-            return;
-        }
 
         if (currentGameWorld != null &&
                 damager.getWorld().equals(currentGameWorld) &&
@@ -163,30 +155,6 @@ public class PlayerListener implements Listener {
             default -> {
                 // leave END_GATEWAY, etc. to vanilla
             }
-        }
-    }
-
-    @EventHandler
-    public void onEntityDamage(EntityDamageEvent event) {
-        if (!(event.getEntity() instanceof Player player)) return;
-
-        World lobbyWorld = gameManager.getLobbyWorld();
-        if (lobbyWorld != null && player.getWorld().equals(lobbyWorld)
-                && event.getCause() == EntityDamageEvent.DamageCause.FALL) {
-            event.setCancelled(true);
-        }
-    }
-
-    @EventHandler
-    public void onFoodLevelChange(FoodLevelChangeEvent event) {
-        if (!(event.getEntity() instanceof Player player)) return;
-
-        World lobbyWorld = gameManager.getLobbyWorld();
-        if (lobbyWorld != null && player.getWorld().equals(lobbyWorld)) {
-            event.setCancelled(true);
-            player.setFoodLevel(20);
-            player.setSaturation(5.0f);
-            player.setExhaustion(0.0f);
         }
     }
 }
