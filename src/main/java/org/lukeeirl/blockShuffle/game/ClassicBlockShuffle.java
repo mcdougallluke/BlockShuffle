@@ -96,7 +96,7 @@ public class ClassicBlockShuffle implements BSGameMode {
         for (UUID uuid : tracker.getUsersInGame()) {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && lobbyWorld != null) {
-                resetPlayerState(player, GameMode.ADVENTURE);
+                resetPlayerState(player, GameMode.SURVIVAL);
                 player.teleport(lobbyWorld.getSpawnLocation());
             }
         }
@@ -104,7 +104,7 @@ public class ClassicBlockShuffle implements BSGameMode {
         for (UUID uuid : tracker.getSpectators()) {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && lobbyWorld != null) {
-                resetPlayerState(player, GameMode.ADVENTURE);
+                resetPlayerState(player, GameMode.SURVIVAL);
                 player.teleport(lobbyWorld.getSpawnLocation());
             }
         }
@@ -163,7 +163,7 @@ public class ClassicBlockShuffle implements BSGameMode {
             // Not in the game anymore, just go to the lobby
             if (lobbyWorld != null) {
                 player.teleport(lobbyWorld.getSpawnLocation());
-                player.setGameMode(GameMode.ADVENTURE);
+                player.setGameMode(GameMode.SURVIVAL);
             }
         }
     }
@@ -269,7 +269,7 @@ public class ClassicBlockShuffle implements BSGameMode {
         }
 
         if (lobbyWorld != null) {
-            resetPlayerState(player, GameMode.ADVENTURE);
+            resetPlayerState(player, GameMode.SURVIVAL);
             player.teleport(lobbyWorld.getSpawnLocation());
         }
     }
