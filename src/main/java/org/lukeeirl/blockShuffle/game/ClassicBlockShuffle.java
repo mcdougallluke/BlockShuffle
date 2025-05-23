@@ -13,6 +13,7 @@ import org.bukkit.entity.Player;
 import org.lukeeirl.blockShuffle.BlockShuffle;
 import org.lukeeirl.blockShuffle.ui.SettingsGUI;
 import org.lukeeirl.blockShuffle.util.SkipManager;
+import org.lukeeirl.blockShuffle.util.StatsManager;
 
 import java.time.Duration;
 import java.util.Iterator;
@@ -32,6 +33,7 @@ public class ClassicBlockShuffle implements BSGameMode {
     private final SettingsGUI settingsGUI;
     private final WorldService worldService;
     private final SkipManager skipManager;
+    private final StatsManager stats;
     private final World lobbyWorld;
     private final Random random;
 
@@ -46,7 +48,7 @@ public class ClassicBlockShuffle implements BSGameMode {
     private World currentGameWorld;
     private boolean inProgress;
 
-    public ClassicBlockShuffle(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI, WorldService worldService, World lobbyWorld, SkipManager skipManager) {
+    public ClassicBlockShuffle(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI, WorldService worldService, World lobbyWorld, SkipManager skipManager, StatsManager stats) {
         this.tracker = tracker;
         this.plugin = plugin;
         this.settings = settings;
@@ -54,6 +56,7 @@ public class ClassicBlockShuffle implements BSGameMode {
         this.worldService = worldService;
         this.lobbyWorld = lobbyWorld;
         this.skipManager = skipManager;
+        this.stats = stats;
         this.random = new Random();
     }
 
@@ -67,6 +70,7 @@ public class ClassicBlockShuffle implements BSGameMode {
         this.materials = this.settings.getStringList(materialPath).stream().map(Material::getMaterial).collect(Collectors.toList());
 
         for (UUID uuid : tracker.getReadyPlayers()) {
+            stats.recordPlayed(uuid);
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && player.isOnline()) {
                 resetPlayerState(player, GameMode.SURVIVAL);
@@ -74,6 +78,7 @@ public class ClassicBlockShuffle implements BSGameMode {
                 tracker.addInGame(uuid);
             }
         }
+        stats.saveAll();
         this.bossBar = this.createBossBar();
         this.startNewRound();
         this.playerUITask = Bukkit.getScheduler().scheduleSyncRepeatingTask(this.plugin, this::refreshPlayerUI, 0, 20);
@@ -484,6 +489,8 @@ public class ClassicBlockShuffle implements BSGameMode {
                         Component.text(player.getName() + " ", NamedTextColor.WHITE)
                                 .append(Component.text("won the game!", NamedTextColor.GREEN))));
                 player.playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_DEATH, 1.0f, 1.0f);
+                stats.recordWin(uuid);
+                stats.save(uuid);
             }
         }
 

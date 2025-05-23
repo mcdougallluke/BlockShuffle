@@ -8,6 +8,7 @@ import org.bukkit.entity.Player;
 import org.lukeeirl.blockShuffle.BlockShuffle;
 import org.lukeeirl.blockShuffle.ui.SettingsGUI;
 import org.lukeeirl.blockShuffle.util.SkipManager;
+import org.lukeeirl.blockShuffle.util.StatsManager;
 
 import java.util.*;
 
@@ -23,14 +24,14 @@ public class GameManager {
 
     private BSGameMode activeMode;
 
-    public GameManager(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI, SkipManager skipManager) {
+    public GameManager(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI, SkipManager skipManager, StatsManager stats) {
         this.settingsGUI = settingsGUI;
         this.tracker = tracker;
         WorldService worldService = new WorldService();
         this.lobbyWorld = Bukkit.getWorlds().getFirst();
         this.skipManager = skipManager;
 
-        this.classicMode = new ClassicBlockShuffle(tracker, plugin, settings, settingsGUI, worldService, lobbyWorld, skipManager);
+        this.classicMode = new ClassicBlockShuffle(tracker, plugin, settings, settingsGUI, worldService, lobbyWorld, skipManager, stats);
         this.continuousMode = new ContinuousBlockShuffle(tracker, plugin, settings, settingsGUI, worldService, lobbyWorld);
     }
 

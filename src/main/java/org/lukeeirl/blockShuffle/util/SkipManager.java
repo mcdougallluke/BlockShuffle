@@ -10,10 +10,12 @@ import java.util.UUID;
 public class SkipManager {
     private final File skipsFile;
     private final YamlConfiguration config;
+    private final StatsManager stats;
 
-    public SkipManager(File skipsFile, YamlConfiguration config) {
+    public SkipManager(File skipsFile, YamlConfiguration config, StatsManager stats) {
         this.skipsFile = skipsFile;
         this.config = config;
+        this.stats = stats;
     }
 
     public int getPurchasedSkips(UUID uuid) {
@@ -23,6 +25,8 @@ public class SkipManager {
     public void addSkips(UUID uuid, int amount) {
         int current = getPurchasedSkips(uuid);
         config.set(uuid.toString(), Math.max(current + amount, 0));
+        stats.recordSkips(uuid, amount);
+        stats.save(uuid);
         save();
     }
 

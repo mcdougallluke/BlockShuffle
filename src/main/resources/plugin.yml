@@ -1,5 +1,5 @@
 name: BlockShuffle
-version: '1.0.0'
+version: '1.1.0'
 main: org.lukeeirl.blockShuffle.BlockShuffle
 api-version: '1.21'
 authors: [ lukeeirl ]
@@ -28,6 +28,9 @@ commands:
     description: Give a player skips
     usage: /<command> <player> <amount>
     permission: blockshuffle.giveskips
+  stats:
+    description: View your game stats
+    usage: /<command> <player>
 
 permissions:
   blockshuffle.admin:
