@@ -2,38 +2,88 @@ name: BlockShuffle
 version: '1.1.0'
 main: org.lukeeirl.blockShuffle.BlockShuffle
 api-version: '1.21'
-authors: [ lukeeirl ]
+authors:
+  - lukeeirl
 description: A Block Shuffle game for Minecraft 1.21.5
 website: lukemcd.dev
 
 commands:
   blockshuffle:
     description: Manage the Block Shuffle game
-    usage: /<command> <ready|start|stop|spectate|readyall>
+    usage: /<command> <ready|start|stop|settings|spectate|readyall|broadcast>
     aliases: [bs]
-    permission: blockshuffle.admin
-    permission-message: You do not have permission to use this command.
+    permission: blockshuffle.command.base
   skipblock:
     description: Skip your assigned block once per game
-    usage: /<command>
+    usage: /skipblock
     aliases: [skip]
+    permission: blockshuffle.command.skip
   lobby:
     description: Return to the lobby and leave the game
-    usage: /<command>
+    usage: /lobby
     aliases: [l]
+    permission: blockshuffle.command.lobby
   testmsg:
     description: Test Adventure MiniMessage styling
-    usage: /<command>
+    usage: /testmsg <minimessage>
+    permission: blockshuffle.command.testmsg
   giveskips:
     description: Give a player skips
-    usage: /<command> <player> <amount>
-    permission: blockshuffle.giveskips
+    usage: /giveskips <player> <amount>
   stats:
     description: View your game stats
-    usage: /<command> <player>
+    usage: /stats [player]
+    permission: blockshuffle.command.stats
 
 permissions:
-  blockshuffle.admin:
+  # Base permission for /blockshuffle; grants access to the command but not subcommands
+  blockshuffle.command.base:
+    description: Allows use of the /blockshuffle command
     default: true
-  blockshuffle.giveskips:
+
+  # User commands
+  blockshuffle.command.start:
+    description: /blockshuffle start
+    default: true
+  blockshuffle.command.skip:
+    description: Allows use of /skipblock
+    default: true
+  blockshuffle.command.lobby:
+    description: Allows use of /lobby
+    default: true
+  blockshuffle.command.stats:
+    description: Allows use of /stats
+    default: true
+
+  # Restricted commands for operators/admins
+  blockshuffle.command.giveskips:
+    description: Allows use of /giveskips
+    default: false
+  blockshuffle.command.testmsg:
+    description: Allows use of /testmsg
+    default: op
+
+  # Admin subcommands for /blockshuffle
+  blockshuffle.admin.stop:
+    description: /blockshuffle stop
+    default: op
+  blockshuffle.admin.settings:
+    description: /blockshuffle settings
+    default: op
+  blockshuffle.admin.readyall:
+    description: /blockshuffle readyall
+    default: op
+  blockshuffle.admin.broadcast:
+    description: /blockshuffle broadcast
+    default: op
+
+  # Aggregate admin permission
+  blockshuffle.admin.*:
+    description: Grants all BlockShuffle admin permissions
+    children:
+      blockshuffle.admin.start: true
+      blockshuffle.admin.stop: true
+      blockshuffle.admin.settings: true
+      blockshuffle.admin.readyall: true
+      blockshuffle.admin.broadcast: true
     default: op

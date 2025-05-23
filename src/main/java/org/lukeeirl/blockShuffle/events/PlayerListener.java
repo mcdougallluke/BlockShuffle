@@ -53,11 +53,6 @@ public class PlayerListener implements Listener {
     }
 
     @EventHandler
-    public void onPlayerQuitEvent(PlayerQuitEvent event) {
-
-    }
-
-    @EventHandler
     public void onPlayerJoinEvent(PlayerJoinEvent event) {
         Player player = event.getPlayer();
 

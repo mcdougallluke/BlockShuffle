@@ -24,12 +24,7 @@ public class GiveSkipsCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
                              @NotNull String label, String[] args) {
-        if (!sender.hasPermission("blockshuffle.giveskips")) {
-            sender.sendMessage(Component.text("You don't have permission.", NamedTextColor.RED));
-            return true;
-        }
-
-        if (sender instanceof Player && !sender.getName().equals("lukeeIRL")) {
+        if (sender instanceof Player && !sender.hasPermission("blockshuffle.command.giveskips")) {
             sender.sendMessage(Component.text("You don't have permission.", NamedTextColor.RED));
             return true;
         }

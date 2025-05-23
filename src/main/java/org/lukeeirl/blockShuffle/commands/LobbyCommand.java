@@ -21,6 +21,11 @@ public class LobbyCommand implements CommandExecutor {
             @NotNull String label,
             String @NotNull [] args
     ) {
+        if (!sender.hasPermission("blockshuffle.command.lobby")) {
+            sender.sendMessage("You don’t have permission.");
+            return true;
+        }
+
         if (!(sender instanceof Player player)) {
             sender.sendMessage("Only players can use this command.");
             return true;
