@@ -51,8 +51,13 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (!sender.hasPermission("blockshuffle.command.base")) {
+            sender.sendMessage(Component.text("You don’t have permission.", NamedTextColor.RED));
+            return true;
+        }
+
         if (args[0].equalsIgnoreCase("broadcast")) {
-            if (!sender.hasPermission("blockshuffle.admin")) {
+            if (!sender.hasPermission("blockshuffle.admin.broadcast")) {
                 sender.sendMessage(Component.text("You do not have permission to broadcast messages.", NamedTextColor.RED));
                 return true;
             }
@@ -94,18 +99,13 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
                 break;
 
             case "start":
-                if (!player.hasPermission("blockshuffle.admin")) {
-                    player.sendMessage(Component.text("You do not have permission to start the game.", NamedTextColor.RED));
-                    return true;
-                }
-
                 if (gameManager.isInProgress()) {
                     player.sendMessage(Component.text("A game is already in progress.", NamedTextColor.RED));
                     return true;
                 }
 
-                if (playerTracker.getReadyPlayers().isEmpty()) {
-                    player.sendMessage(Component.text("No players are ready.", NamedTextColor.RED));
+                if (playerTracker.getReadyPlayers().size() <= 1) {
+                    player.sendMessage(Component.text("Not enough players are ready.", NamedTextColor.RED));
                     return true;
                 }
 
@@ -115,7 +115,7 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
                 break;
 
             case "settings":
-                if (!player.hasPermission("blockshuffle.admin")) {
+                if (!player.hasPermission("blockshuffle.admin.settings")) {
                     player.sendMessage(Component.text("You do not have permission to access settings.", NamedTextColor.RED));
                     return true;
                 }
@@ -123,7 +123,7 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
                 break;
 
             case "stop":
-                if (!player.hasPermission("blockshuffle.admin")) {
+                if (!player.hasPermission("blockshuffle.admin.stop")) {
                     player.sendMessage(Component.text("You do not have permission to stop the game.", NamedTextColor.RED));
                     return true;
                 }
@@ -142,7 +142,7 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
                 break;
 
             case "readyall":
-                if (!player.hasPermission("blockshuffle.admin")) {
+                if (!player.hasPermission("blockshuffle.admin.readyall")) {
                     player.sendMessage(Component.text("You do not have permission to ready all players.", NamedTextColor.RED));
                     return true;
                 }

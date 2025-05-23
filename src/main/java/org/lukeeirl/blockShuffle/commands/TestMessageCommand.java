@@ -17,12 +17,11 @@ public class TestMessageCommand implements CommandExecutor {
             @NotNull String label,
             String @NotNull [] args
     ) {
-        if (!(sender instanceof Player player)) return false;
-
-        if (args.length == 0) {
-            player.sendMessage(Component.text("Usage: /testmsg <minimessage>"));
+        if (!sender.hasPermission("blockshuffle.command.testmsg")) {
             return true;
         }
+
+        if (!(sender instanceof Player player)) return false;
 
         String input = String.join(" ", args);
         Component parsed = MiniMessage.miniMessage().deserialize(input);

@@ -1,53 +1,82 @@
 # 🧱 Block Shuffle (Minecraft 1.21+)
 
-A multiplayer **Block Shuffle** game mode plugin for Minecraft 1.21.5 built with the Spigot API. Players must race to find and stand on a randomly assigned block before the time runs out — or be eliminated!
+A multiplayer **Block Shuffle** game mode plugin for Minecraft 1.21.5 built with the Spigot API. Players must race to find and stand on a randomly assigned block before time runs out — or be eliminated!
 
 > 🔧 Built with Java 21 and Gradle.  
-> 🎮 Supports dynamic worlds, round tracking, player readiness, block skipping, and more.
+> 🎮 Supports dynamic worlds, round tracking, player readiness, block skipping, admin settings GUI, broadcast messaging, and more.
 
 ---
 
 ## 📦 Features
 
 - ✅ Round-based block hunting game
-- 🧍 Players must stand on a specific block within 5 minutes
+- 🧍 Players stand on a randomly assigned block within a configurable timer
 - 🏁 Auto-eliminates players who fail
 - ⏳ Visual timer via boss bar
-- 🔀 One-time block skip per game (`/skipblock`)
+- 🔀 Skip your block for free once per game (`/skipblock`)
 - 🧑‍🤝‍🧑 Player ready-up system (`/blockshuffle ready`)
-- 🌍 Dynamic world generation for each game
-- 📄 Easily configurable block list via `settings.yml`
+- 🌍 Dynamic world generation for each match
+- ⚙️ Admin settings GUI (`/blockshuffle settings`)
+- 📄 Configurable block list in `settings.yml`
+
+---
 
 ## 🧪 Commands
 
-| Command                | Description                                 |
-|------------------------|---------------------------------------------|
-| `/blockshuffle ready`  | Toggles player ready state                  |
-| `/blockshuffle start`  | Starts the game (admin only)                |
-| `/blockshuffle stop`   | Stops the current game (admin only)         |
-| `/blockshuffle spectate` | (Currently disabled)                     |
-| `/blockshuffle readyall` | Admin-only command to ready all players  |
-| `/skipblock`           | Skip your block **once** per game           |
+### `/blockshuffle` subcommands
+
+| Subcommand   | Description                            | Permission                       |
+|--------------|----------------------------------------|----------------------------------|
+| `ready`      | Toggle your ready status               | `blockshuffle.command.base`      |
+| `start`      | Start the game                         | `blockshuffle.command.start`     |
+| `stop`       | Stop the current game                  | `blockshuffle.admin.stop`        |
+| `settings`   | Open the admin settings GUI            | `blockshuffle.admin.settings`    |
+| `readyall`   | Mark all online players as ready       | `blockshuffle.admin.readyall`    |
+| `broadcast`  | Broadcast a MiniMessage to everyone    | `blockshuffle.admin.broadcast`   |
+| `spectate`   | (Disabled)                             | `blockshuffle.command.base`      |
+
+### Other commands
+
+| Command                          | Description                         | Permission                         |
+|----------------------------------|-------------------------------------|------------------------------------|
+| `/skipblock`                     | Skip your block once per game       | `blockshuffle.command.skip`        |
+| `/lobby`                         | Return to the lobby                 | `blockshuffle.command.lobby`       |
+| `/stats [player]`                | View your or another’s stats        | `blockshuffle.command.stats`       |
+| `/giveskips <player> <amount>`   | Grant skips to a player             | `blockshuffle.command.giveskips`   |
+| `/testmsg <minimessage>`         | Test MiniMessage formatting         | `blockshuffle.command.testmsg`     |
 
 ---
 
 ## 🔐 Permissions
 
-| Permission           | Description                                              | Default |
-|----------------------|----------------------------------------------------------|---------|
-| `blockshuffle.admin` | Allows starting/stopping games, readying all players     | true    |
+| Node                                 | Default | Notes                                      |
+|--------------------------------------|:-------:|--------------------------------------------|
+| `blockshuffle.command.base`          |  true   | Required for any `/blockshuffle` usage      |
+| `blockshuffle.command.start`         |  true   | `/blockshuffle start`                       |
+| `blockshuffle.command.skip`          |  true   | `/skipblock`                                |
+| `blockshuffle.command.lobby`         |  true   | `/lobby`                                    |
+| `blockshuffle.command.stats`         |  true   | `/stats`                                    |
+| `blockshuffle.command.giveskips`     |  false  | `/giveskips` (must be granted explicitly)   |
+| `blockshuffle.command.testmsg`       |   op    | `/testmsg`                                  |
+| `blockshuffle.admin.stop`            |   op    | `/blockshuffle stop`                        |
+| `blockshuffle.admin.settings`        |   op    | `/blockshuffle settings`                    |
+| `blockshuffle.admin.readyall`        |   op    | `/blockshuffle readyall`                    |
+| `blockshuffle.admin.broadcast`       |   op    | `/blockshuffle broadcast`                   |
+| `blockshuffle.admin.*`               |   op    | All admin subcommands                       |
 
 ---
 
-## 💡 Notes
+## ⚙️ Configuration
 
-- Players who disconnect and rejoin during a round will be restored if still active.
-- When all active players complete their block, the next round starts immediately.
-- Winners get fireworks 🎆 and a celebration message.
+Edit `src/main/resources/settings.yml`:
 
----
-
-## ✨ Author
-
-Made with ❤️ by [lukeeirl](https://github.com/mcdougallluke)  
-Website: [lukemcd.dev](https://lukemcd.dev)
+```yaml
+roundTimeSeconds: 300      # Round length in seconds
+pvpEnabled: false          # Enable/disable PvP
+decreaseTime: true         # Decrease timer each round
+gameMode: Classic          # "Classic" or "Continuous"
+materials:
+  - AIR
+  - STONE
+  - DIRT
+  # …and your other block choices

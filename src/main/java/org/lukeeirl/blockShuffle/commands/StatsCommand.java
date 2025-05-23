@@ -33,10 +33,13 @@ public class StatsCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, @NotNull Command cmd, @NotNull String label, String[] args) {
-        // resolve target
+        if (!sender.hasPermission("blockshuffle.command.stats")) {
+            sender.sendMessage(mm.deserialize("<red>You don’t have permission.</red>"));
+            return true;
+        }
+
         OfflinePlayer targetPlayer;
         if (args.length > 0) {
-            // look only in local cache
             targetPlayer = Arrays.stream(Bukkit.getOfflinePlayers())
                     .filter(p -> p.getName() != null && p.getName().equalsIgnoreCase(args[0]))
                     .findFirst().orElse(null);
@@ -57,7 +60,6 @@ public class StatsCommand implements CommandExecutor, TabCompleter {
         int remainingSkips = skipManager.getPurchasedSkips(uuid);
         String name = targetPlayer.getName();
 
-        // build one multiline component
         assert name != null;
         String raw = """
         <dark_gray>╔═════════════╗</dark_gray>
