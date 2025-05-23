@@ -8,6 +8,7 @@ import org.lukeeirl.blockShuffle.game.GameManager;
 import org.lukeeirl.blockShuffle.game.PlayerTracker;
 import org.lukeeirl.blockShuffle.ui.SettingsGUI;
 import org.lukeeirl.blockShuffle.util.SkipManager;
+import org.lukeeirl.blockShuffle.util.StatsManager;
 
 import java.io.File;
 import java.util.Objects;
@@ -32,14 +33,16 @@ public final class BlockShuffle extends JavaPlugin {
         YamlConfiguration skipsConfig = YamlConfiguration.loadConfiguration(this.skipsFile);
         PlayerTracker playerTracker = new PlayerTracker();
         SettingsGUI settingsGUI = new SettingsGUI(this, this.settingsFile, settings);
-        SkipManager skipManager = new SkipManager(skipsFile, skipsConfig);
-        GameManager gameManager = new GameManager(playerTracker, this, settings, settingsGUI, skipManager);
+        StatsManager statsManager = new StatsManager(this);
+        SkipManager skipManager = new SkipManager(skipsFile, skipsConfig, statsManager);
+        GameManager gameManager = new GameManager(playerTracker, this, settings, settingsGUI, skipManager, statsManager);
         PlayerListener playerListener = new PlayerListener(this, playerTracker, gameManager);
         Objects.requireNonNull(this.getCommand("blockshuffle")).setExecutor(new BlockShuffleCommand(playerTracker, gameManager, settingsGUI));
         Objects.requireNonNull(this.getCommand("skipblock")).setExecutor(new SkipBlockCommand(gameManager, playerTracker));
         Objects.requireNonNull(this.getCommand("lobby")).setExecutor(new LobbyCommand(gameManager));
         Objects.requireNonNull(this.getCommand("testmsg")).setExecutor(new TestMessageCommand());
-        Objects.requireNonNull(getCommand("giveskips")).setExecutor(new GiveSkipsCommand(skipManager));
+        Objects.requireNonNull(this.getCommand("giveskips")).setExecutor(new GiveSkipsCommand(skipManager));
+        Objects.requireNonNull(this.getCommand("stats")).setExecutor(new StatsCommand(statsManager, skipManager));
 
         this.getServer().getPluginManager().registerEvents(playerListener, this);
     }
