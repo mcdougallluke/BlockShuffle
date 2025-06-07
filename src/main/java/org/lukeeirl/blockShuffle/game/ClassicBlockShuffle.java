@@ -130,6 +130,8 @@ public class ClassicBlockShuffle implements BSGameMode {
                         .append(Component.text(blockName, NamedTextColor.GREEN, TextDecoration.BOLD))));
         player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
         tracker.addCompleted(uuid);
+        stats.recordBlockSteppedOn(uuid);
+        stats.save(uuid);
         tracker.getUserMaterialMap().remove(uuid);
 
         if (tracker.getCompletedUsers().size() == tracker.getUsersInGame().size()) {
