@@ -81,13 +81,12 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("This command can only be used by players.", NamedTextColor.RED));
-            return true;
-        }
-
         switch (args[0].toLowerCase()) {
             case "ready":
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(Component.text("This command can only be used by players.", NamedTextColor.RED));
+                    return true;
+                }
                 UUID uuid = player.getUniqueId();
                 if (playerTracker.isReady(uuid)) {
                     playerTracker.setNotReady(uuid);
@@ -100,12 +99,12 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
 
             case "start":
                 if (gameManager.isInProgress()) {
-                    player.sendMessage(Component.text("A game is already in progress.", NamedTextColor.RED));
+                    sender.sendMessage(Component.text("A game is already in progress.", NamedTextColor.RED));
                     return true;
                 }
 
                 if (playerTracker.getReadyPlayers().size() <= 1) {
-                    player.sendMessage(Component.text("Not enough players are ready.", NamedTextColor.RED));
+                    sender.sendMessage(Component.text("Not enough players are ready.", NamedTextColor.RED));
                     return true;
                 }
 
@@ -115,21 +114,25 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
                 break;
 
             case "settings":
-                if (!player.hasPermission("blockshuffle.admin.settings")) {
-                    player.sendMessage(Component.text("You do not have permission to access settings.", NamedTextColor.RED));
+                if (!sender.hasPermission("blockshuffle.admin.settings")) {
+                    sender.sendMessage(Component.text("You do not have permission to access settings.", NamedTextColor.RED));
+                    return true;
+                }
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(Component.text("This command can only be used by players.", NamedTextColor.RED));
                     return true;
                 }
                 settingsGUI.openSettingsMenu(player);
                 break;
 
             case "stop":
-                if (!player.hasPermission("blockshuffle.admin.stop")) {
-                    player.sendMessage(Component.text("You do not have permission to stop the game.", NamedTextColor.RED));
+                if (!sender.hasPermission("blockshuffle.admin.stop")) {
+                    sender.sendMessage(Component.text("You do not have permission to stop the game.", NamedTextColor.RED));
                     return true;
                 }
 
                 if (!gameManager.isInProgress()) {
-                    player.sendMessage(Component.text("No game is currently running.", NamedTextColor.RED));
+                    sender.sendMessage(Component.text("No game is currently running.", NamedTextColor.RED));
                     return true;
                 }
 
@@ -138,21 +141,21 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
                 break;
 
             case "spectate":
-                player.sendMessage(Component.text("Command currently disabled", NamedTextColor.GRAY));
+                sender.sendMessage(Component.text("Command currently disabled", NamedTextColor.GRAY));
                 break;
 
             case "readyall":
-                if (!player.hasPermission("blockshuffle.admin.readyall")) {
-                    player.sendMessage(Component.text("You do not have permission to ready all players.", NamedTextColor.RED));
+                if (!sender.hasPermission("blockshuffle.admin.readyall")) {
+                    sender.sendMessage(Component.text("You do not have permission to ready all players.", NamedTextColor.RED));
                     return true;
                 }
 
                 gameManager.readyAllPlayers();
-                player.sendMessage(Component.text("All players have been marked as ready.", NamedTextColor.GREEN));
+                sender.sendMessage(Component.text("All players have been marked as ready.", NamedTextColor.GREEN));
                 break;
 
             default:
-                player.sendMessage(Component.text("Unknown subcommand. Try: /blockshuffle <ready|start|stop|spectate|readyall>", NamedTextColor.YELLOW));
+                sender.sendMessage(Component.text("Unknown subcommand. Try: /blockshuffle <ready|start|stop|spectate|readyall>", NamedTextColor.YELLOW));
                 break;
         }
 
