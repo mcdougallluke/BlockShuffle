@@ -31,7 +31,8 @@ public class StatsManager {
                 cache.put(uuid, new PlayerStats(
                         sec.getInt("gamesPlayed", 0),
                         sec.getInt("gamesWon", 0),
-                        sec.getInt("skipsBought", 0)
+                        sec.getInt("skipsBought", 0),
+                        sec.getInt("blocksSteppedOn", 0)
                 ));
             }
         }
@@ -44,7 +45,6 @@ public class StatsManager {
         save(uuid);
     }
 
-    /** Record that this player has won one more game. */
     public void recordWin(UUID uuid) {
         PlayerStats old = get(uuid);
         PlayerStats updated = old.incrementWon();
@@ -52,10 +52,16 @@ public class StatsManager {
         save(uuid);
     }
 
-    /** Record that this player has purchased n more skips. */
     public void recordSkips(UUID uuid, int n) {
         PlayerStats old = get(uuid);
         PlayerStats updated = old.addSkips(n);
+        cache.put(uuid, updated);
+        save(uuid);
+    }
+
+    public void recordBlockSteppedOn(UUID uuid) {
+        PlayerStats old = get(uuid);
+        PlayerStats updated = old.incrementBlocksSteppedOn();
         cache.put(uuid, updated);
         save(uuid);
     }
@@ -69,6 +75,7 @@ public class StatsManager {
         config.set(uuid + ".gamesPlayed", s.gamesPlayed());
         config.set(uuid + ".gamesWon",    s.gamesWon());
         config.set(uuid + ".skipsBought", s.skipsBought());
+        config.set(uuid + ".blocksSteppedOn", s.blocksSteppedOn());
         try { config.save(statsFile); }
         catch (IOException e) { BlockShuffle.logger.severe("Could not save stats.yml"); }
     }
