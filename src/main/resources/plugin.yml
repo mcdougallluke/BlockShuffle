@@ -4,7 +4,7 @@ main: org.lukeeirl.blockShuffle.BlockShuffle
 api-version: '1.21'
 authors:
   - lukeeirl
-description: A Block Shuffle game for Minecraft 1.21.5
+description: A Block Shuffle game for Minecraft 1.21.11
 website: lukemcd.dev
 
 commands:
