@@ -24,6 +24,7 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 import static org.lukeeirl.blockShuffle.util.PlayerUtils.*;
+import static org.lukeeirl.blockShuffle.util.BlockShuffleUtils.*;
 
 public class ClassicBlockShuffle implements BSGameMode {
 
@@ -47,6 +48,7 @@ public class ClassicBlockShuffle implements BSGameMode {
     private long roundStartTime;
     private World currentGameWorld;
     private boolean inProgress;
+    private int loganzaSoundTask = -1;
 
     public ClassicBlockShuffle(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI, WorldService worldService, World lobbyWorld, SkipManager skipManager, StatsManager stats) {
         this.tracker = tracker;
@@ -82,6 +84,7 @@ public class ClassicBlockShuffle implements BSGameMode {
         this.bossBar = this.createBossBar();
         this.startNewRound();
         this.playerUITask = Bukkit.getScheduler().scheduleSyncRepeatingTask(this.plugin, this::refreshPlayerUI, 0, 20);
+        this.scheduleLoganzaSound();
     }
 
     @Override
@@ -92,6 +95,10 @@ public class ClassicBlockShuffle implements BSGameMode {
         this.bossBar.removeAll();
         Bukkit.getScheduler().cancelTask(this.roundEndTask);
         Bukkit.getScheduler().cancelTask(this.playerUITask);
+        if (this.loganzaSoundTask != -1) {
+            Bukkit.getScheduler().cancelTask(this.loganzaSoundTask);
+            this.loganzaSoundTask = -1;
+        }
 
         for (UUID uuid : tracker.getUsersInGame()) {
             Player player = Bukkit.getPlayer(uuid);
@@ -215,7 +222,7 @@ public class ClassicBlockShuffle implements BSGameMode {
             return false;
         }
 
-        Material newBlock = getRandomMaterial();
+        Material newBlock = getRandomMaterial(materials, random);
         tracker.assignBlock(uuid, newBlock);
         tracker.addSkipped(uuid);
 
@@ -256,7 +263,15 @@ public class ClassicBlockShuffle implements BSGameMode {
         tracker.getSkippedPlayers().remove(uuid);
 
         if (wasInGame) {
-            announceElimination(uuid);
+            // Strike lightning at elimination location
+            strikeLightningWithoutFire(player.getLocation());
+
+            // Drop items in chest
+            boolean hasItems = dropItemsInChest(player);
+
+            // Announce elimination with coordinates if items were dropped
+            announceElimination(uuid, tracker, player.getLocation(), hasItems);
+
             tracker.getUserMaterialMap().remove(uuid);
 
             if (tracker.getUsersInGame().size() == 1) {
@@ -282,7 +297,7 @@ public class ClassicBlockShuffle implements BSGameMode {
         this.roundStartTime = System.currentTimeMillis();
 
         for (UUID uuid : tracker.getUsersInGame()) {
-            assignNewBlockToPlayer(uuid);
+            assignNewBlockToPlayer(uuid, tracker, materials, random);
         }
 
         this.roundEndTask = Bukkit.getScheduler().scheduleSyncDelayedTask(this.plugin, this::nextRound, this.ticksInRound);
@@ -304,35 +319,6 @@ public class ClassicBlockShuffle implements BSGameMode {
         tracker.getCompletedUsers().clear();
 
         startNewRound();
-    }
-
-    private Material getRandomMaterial() {
-        Material selectedMaterial = null;
-        int attemptCount = 0;
-
-        while (selectedMaterial == null) {
-            int randomIndex = this.random.nextInt(this.materials.size());
-            selectedMaterial = this.materials.get(randomIndex);
-
-            if (selectedMaterial == null) {
-                BlockShuffle.logger.info(String.format(
-                        "[ERROR] getRandomMaterial(): Null material at index %d (Attempt #%d). Retrying...",
-                        randomIndex,
-                        attemptCount
-                ));
-            } else {
-                BlockShuffle.logger.info(String.format(
-                        "[DEBUG] getRandomMaterial(): Selected index %d on attempt #%d. Material: %s",
-                        randomIndex,
-                        attemptCount,
-                        selectedMaterial.name()
-                ));
-            }
-
-            attemptCount++;
-        }
-
-        return selectedMaterial;
     }
 
     private BossBar createBossBar() {
@@ -404,44 +390,6 @@ public class ClassicBlockShuffle implements BSGameMode {
         }
     }
 
-    private void assignNewBlockToPlayer(UUID uuid) {
-        Material block = getRandomMaterial();
-        tracker.assignBlock(uuid, block);
-        BlockShuffle.logger.log(Level.INFO, uuid + " was assigned " + formatMaterialName(block));
-
-        Player player = Bukkit.getPlayer(uuid);
-        if (player != null) {
-            String blockName = formatMaterialName(block);
-            player.sendMessage(prefixedMessage(
-                    Component.text("Your new block is: ", NamedTextColor.GREEN)
-                            .append(Component.text(blockName, NamedTextColor.GREEN, TextDecoration.BOLD))));
-        }
-    }
-
-
-    private void announceElimination(UUID uuid) {
-        Player player = Bukkit.getPlayer(uuid);
-        if (player != null) {
-            Material material = tracker.getUserMaterialMap().get(uuid);
-
-            Component message = prefixedMessage(
-                    Component.text(player.getName() + " ", NamedTextColor.WHITE)
-                            .append(Component.text("got eliminated!", NamedTextColor.RED))
-            );
-
-            // Only show the block if they still had one assigned
-            if (material != null) {
-                message = prefixedMessage(
-                        Component.text(player.getName() + " ", NamedTextColor.WHITE)
-                                .append(Component.text("got eliminated! Their block was: ", NamedTextColor.RED))
-                                .append(Component.text(formatMaterialName(material), NamedTextColor.RED, TextDecoration.BOLD))
-                );
-            }
-
-            Bukkit.broadcast(message);
-        }
-    }
-
     private void eliminateIncompletePlayers() {
         Iterator<UUID> iterator = tracker.getUsersInGame().iterator();
         while (iterator.hasNext()) {
@@ -449,12 +397,17 @@ public class ClassicBlockShuffle implements BSGameMode {
             if (!tracker.getCompletedUsers().contains(uuid)) {
                 Player player = Bukkit.getPlayer(uuid);
                 if (player != null) {
-                    String blockName = formatMaterialName(tracker.getUserMaterialMap().get(uuid));
-                    Bukkit.broadcast(prefixedMessage(
-                            Component.text(player.getName() + " ", NamedTextColor.WHITE)
-                                    .append(Component.text("got eliminated! Their block was: ", NamedTextColor.RED))
-                                    .append(Component.text(blockName, NamedTextColor.RED, TextDecoration.BOLD))));
                     player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_DEATH, 1.0f, 1.0f);
+
+                    // Strike lightning at elimination location
+                    strikeLightningWithoutFire(player.getLocation());
+
+                    // Drop items in chest and get location
+                    boolean hasItems = dropItemsInChest(player);
+
+                    // Announce elimination with coordinates if items were dropped
+                    announceElimination(uuid, tracker, player.getLocation(), hasItems);
+
                     tracker.addSpectator(uuid);
                     player.setGameMode(GameMode.SPECTATOR);
                 }
@@ -507,5 +460,29 @@ public class ClassicBlockShuffle implements BSGameMode {
         }
 
         Bukkit.getScheduler().runTaskLater(this.plugin, this::resetGame, 140L);
+    }
+
+    private void scheduleLoganzaSound() {
+        // Check if loganza is in the game
+        Player loganza = Bukkit.getPlayer("loganza");
+        if (loganza != null && tracker.getUsersInGame().contains(loganza.getUniqueId())) {
+            // Random delay between 5-10 minutes (6000-12000 ticks)
+            int minTicks = 6000; // 5 minutes
+            int maxTicks = 12000; // 10 minutes
+            int randomDelay = minTicks + random.nextInt(maxTicks - minTicks + 1);
+
+            this.loganzaSoundTask = Bukkit.getScheduler().scheduleSyncDelayedTask(this.plugin, () -> {
+                // Play sound and schedule next one
+                Player player = Bukkit.getPlayer("loganza");
+                if (player != null && player.isOnline() && inProgress) {
+                    player.playSound(player.getLocation(), Sound.ENTITY_CREEPER_PRIMED, 1.0f, 1.0f);
+                    BlockShuffle.logger.info("[Loganza Sound] Played creeper hiss for loganza");
+                }
+                // Schedule next sound if game is still in progress
+                if (inProgress) {
+                    scheduleLoganzaSound();
+                }
+            }, randomDelay);
+        }
     }
 }
