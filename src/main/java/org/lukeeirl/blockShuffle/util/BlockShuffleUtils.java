@@ -68,6 +68,7 @@ public class BlockShuffleUtils {
     /**
      * Broadcasts an elimination message for a player.
      * Shows their assigned block if they still had one.
+     * Supports both online and offline players.
      *
      * @param uuid Player UUID
      * @param tracker PlayerTracker instance
@@ -75,36 +76,48 @@ public class BlockShuffleUtils {
      * @param hasItems Whether the player had items dropped
      */
     public static void announceElimination(UUID uuid, PlayerTracker tracker, Location location, boolean hasItems) {
+        // Try online player first, fall back to offline player
         Player player = Bukkit.getPlayer(uuid);
+        String playerName;
+
         if (player != null) {
-            Material material = tracker.getUserMaterialMap().get(uuid);
-
-            Component message = prefixedMessage(
-                    Component.text(player.getName() + " ", NamedTextColor.WHITE)
-                            .append(Component.text("got eliminated!", NamedTextColor.RED))
-            );
-
-            // Only show the block if they still had one assigned
-            if (material != null) {
-                message = prefixedMessage(
-                        Component.text(player.getName() + " ", NamedTextColor.WHITE)
-                                .append(Component.text("got eliminated! Their block was: ", NamedTextColor.RED))
-                                .append(Component.text(formatMaterialName(material), NamedTextColor.RED, TextDecoration.BOLD))
-                );
+            playerName = player.getName();
+        } else {
+            // Player is offline - get their name from OfflinePlayer
+            OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(uuid);
+            playerName = offlinePlayer.getName();
+            if (playerName == null) {
+                playerName = "Unknown Player";
             }
-
-            // Add coordinates if items were dropped
-            if (hasItems && location != null) {
-                int x = location.getBlockX();
-                int y = location.getBlockY();
-                int z = location.getBlockZ();
-
-                message = message.append(Component.text(" | Items at: ", NamedTextColor.GRAY))
-                        .append(Component.text("X: " + x + " Y: " + y + " Z: " + z, NamedTextColor.WHITE, TextDecoration.BOLD));
-            }
-
-            Bukkit.broadcast(message);
         }
+
+        Material material = tracker.getUserMaterialMap().get(uuid);
+
+        Component message = prefixedMessage(
+                Component.text(playerName + " ", NamedTextColor.WHITE)
+                        .append(Component.text("got eliminated!", NamedTextColor.RED))
+        );
+
+        // Only show the block if they still had one assigned
+        if (material != null) {
+            message = prefixedMessage(
+                    Component.text(playerName + " ", NamedTextColor.WHITE)
+                            .append(Component.text("got eliminated! Their block was: ", NamedTextColor.RED))
+                            .append(Component.text(formatMaterialName(material), NamedTextColor.RED, TextDecoration.BOLD))
+            );
+        }
+
+        // Add coordinates if items were dropped
+        if (hasItems && location != null) {
+            int x = location.getBlockX();
+            int y = location.getBlockY();
+            int z = location.getBlockZ();
+
+            message = message.append(Component.text(" | Items at: ", NamedTextColor.GRAY))
+                    .append(Component.text("X: " + x + " Y: " + y + " Z: " + z, NamedTextColor.WHITE, TextDecoration.BOLD));
+        }
+
+        Bukkit.broadcast(message);
     }
 
     /**

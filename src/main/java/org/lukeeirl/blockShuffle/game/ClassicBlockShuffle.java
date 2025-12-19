@@ -12,15 +12,12 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.lukeeirl.blockShuffle.BlockShuffle;
 import org.lukeeirl.blockShuffle.ui.SettingsGUI;
+import org.lukeeirl.blockShuffle.util.CreeperManager;
 import org.lukeeirl.blockShuffle.util.SkipManager;
 import org.lukeeirl.blockShuffle.util.StatsManager;
 
 import java.time.Duration;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Random;
-import java.util.UUID;
-import java.util.logging.Level;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.lukeeirl.blockShuffle.util.PlayerUtils.*;
@@ -35,6 +32,7 @@ public class ClassicBlockShuffle implements BSGameMode {
     private final WorldService worldService;
     private final SkipManager skipManager;
     private final StatsManager stats;
+    private final CreeperManager creeperManager;
     private final World lobbyWorld;
     private final Random random;
 
@@ -48,9 +46,10 @@ public class ClassicBlockShuffle implements BSGameMode {
     private long roundStartTime;
     private World currentGameWorld;
     private boolean inProgress;
-    private int loganzaSoundTask = -1;
+    private long gameInstanceId;
+    private int creeperSoundTask = -1;
 
-    public ClassicBlockShuffle(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI, WorldService worldService, World lobbyWorld, SkipManager skipManager, StatsManager stats) {
+    public ClassicBlockShuffle(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI, WorldService worldService, World lobbyWorld, SkipManager skipManager, StatsManager stats, CreeperManager creeperManager) {
         this.tracker = tracker;
         this.plugin = plugin;
         this.settings = settings;
@@ -59,14 +58,16 @@ public class ClassicBlockShuffle implements BSGameMode {
         this.lobbyWorld = lobbyWorld;
         this.skipManager = skipManager;
         this.stats = stats;
+        this.creeperManager = creeperManager;
         this.random = new Random();
     }
 
     @Override
     public void startGame() {
         this.inProgress = true;
+        this.gameInstanceId = System.currentTimeMillis();
         this.ticksInRound = settingsGUI.getRoundTimeTicks();
-        String baseWorldName = "blockshuffle_" + System.currentTimeMillis();
+        String baseWorldName = "blockshuffle_" + this.gameInstanceId;
         currentGameWorld = worldService.createLinkedWorlds(baseWorldName);
         String materialPath = "materials";
         this.materials = this.settings.getStringList(materialPath).stream().map(Material::getMaterial).collect(Collectors.toList());
@@ -84,20 +85,21 @@ public class ClassicBlockShuffle implements BSGameMode {
         this.bossBar = this.createBossBar();
         this.startNewRound();
         this.playerUITask = Bukkit.getScheduler().scheduleSyncRepeatingTask(this.plugin, this::refreshPlayerUI, 0, 20);
-        this.scheduleLoganzaSound();
+        this.scheduleCreeperSound();
     }
 
     @Override
     public void resetGame() {
         this.roundNumber = 0;
         inProgress = false;
+        this.gameInstanceId = 0;
         BlockShuffle.logger.info("[Game State] Game ended — setInProgress(false) from resetGame()");
         this.bossBar.removeAll();
         Bukkit.getScheduler().cancelTask(this.roundEndTask);
         Bukkit.getScheduler().cancelTask(this.playerUITask);
-        if (this.loganzaSoundTask != -1) {
-            Bukkit.getScheduler().cancelTask(this.loganzaSoundTask);
-            this.loganzaSoundTask = -1;
+        if (this.creeperSoundTask != -1) {
+            Bukkit.getScheduler().cancelTask(this.creeperSoundTask);
+            this.creeperSoundTask = -1;
         }
 
         for (UUID uuid : tracker.getUsersInGame()) {
@@ -108,15 +110,23 @@ public class ClassicBlockShuffle implements BSGameMode {
             }
         }
 
+        // Collect offline spectators before clearing
+        Set<UUID> offlineSpectators = new HashSet<>();
         for (UUID uuid : tracker.getSpectators()) {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && lobbyWorld != null) {
                 resetPlayerState(player, GameMode.SURVIVAL);
                 player.teleport(lobbyWorld.getSpawnLocation());
+            } else {
+                offlineSpectators.add(uuid);
             }
         }
 
         tracker.clearAll();
+
+        for (UUID uuid : offlineSpectators) {
+            tracker.addSpectator(uuid);
+        }
 
         if (currentGameWorld != null) {
             Bukkit.unloadWorld(currentGameWorld, false);
@@ -151,14 +161,14 @@ public class ClassicBlockShuffle implements BSGameMode {
     @Override
     public void playerJoined(Player player) {
         UUID uuid = player.getUniqueId();
+
+        // Handle active players
         if (tracker.getUsersInGame().contains(uuid)) {
-            // They were already in the game, teleport them back and restore state
             if (currentGameWorld != null) {
-                //player.teleport(currentGameWorld.getSpawnLocation());
-                bossBar.addPlayer(player); // Re-add to the boss bar
+                bossBar.addPlayer(player);
                 player.sendMessage(prefixedMessage(
                         Component.text("You've rejoined the game", NamedTextColor.GREEN)));
-                // Re-send their block task, if it still exists
+
                 Material material = tracker.getUserMaterialMap().get(uuid);
                 if (material != null) {
                     String blockName = formatMaterialName(material);
@@ -166,14 +176,41 @@ public class ClassicBlockShuffle implements BSGameMode {
                             Component.text("Your block is: ", NamedTextColor.GREEN)
                                     .append(Component.text(blockName, NamedTextColor.GREEN, TextDecoration.BOLD))));
                 }
+            }
+            return;
+        }
 
+        // Handle spectators
+        if (tracker.getSpectators().contains(uuid)) {
+            Long spectatorGameId = tracker.getSpectatorGameId().get(uuid);
+
+            // Check if they were spectating THIS game
+            if (spectatorGameId != null && spectatorGameId == this.gameInstanceId && this.inProgress) {
+                // Same game still running - restore spectator state
+                player.setGameMode(GameMode.SPECTATOR);
+                player.sendMessage(prefixedMessage(
+                        Component.text("You've rejoined as a spectator", NamedTextColor.YELLOW)));
+                BlockShuffle.logger.info("[Spectator Rejoin] " + player.getName() + " rejoined game " + this.gameInstanceId + " as spectator");
+            } else {
+                // Game ended or different game - cleanup
+                tracker.getSpectators().remove(uuid);
+                tracker.getSpectatorGameId().remove(uuid);
+
+                if (lobbyWorld != null) {
+                    resetPlayerState(player, GameMode.SURVIVAL);
+                    player.teleport(lobbyWorld.getSpawnLocation());
+                    player.sendMessage(prefixedMessage(
+                            Component.text("The game you were spectating has ended", NamedTextColor.GRAY)));
+                }
+                BlockShuffle.logger.info("[Spectator Cleanup] " + player.getName() + " cleaned up (was watching game " + spectatorGameId + ", current is " + this.gameInstanceId + ")");
             }
-        } else {
-            // Not in the game anymore, just go to the lobby
-            if (lobbyWorld != null) {
-                player.teleport(lobbyWorld.getSpawnLocation());
-                player.setGameMode(GameMode.SURVIVAL);
-            }
+            return;
+        }
+
+        // Not in game or spectators - send to lobby
+        if (lobbyWorld != null) {
+            player.teleport(lobbyWorld.getSpawnLocation());
+            player.setGameMode(GameMode.SURVIVAL);
         }
     }
 
@@ -254,11 +291,17 @@ public class ClassicBlockShuffle implements BSGameMode {
     }
 
     @Override
+    public long getGameInstanceId() {
+        return this.gameInstanceId;
+    }
+
+    @Override
     public void sendPlayerToLobby(Player player) {
         UUID uuid = player.getUniqueId();
 
         boolean wasInGame = tracker.getUsersInGame().remove(uuid);
-        tracker.getSpectators().remove(uuid);
+        boolean wasSpectator = tracker.getSpectators().remove(uuid);
+        tracker.getSpectatorGameId().remove(uuid);  // Clear game ID tracking
         tracker.getCompletedUsers().remove(uuid);
         tracker.getSkippedPlayers().remove(uuid);
 
@@ -285,9 +328,76 @@ public class ClassicBlockShuffle implements BSGameMode {
             }
         }
 
+        if (wasSpectator) {
+            player.sendMessage(prefixedMessage(
+                    Component.text("You have left spectator mode", NamedTextColor.GRAY)));
+            BlockShuffle.logger.info("[Lobby] Spectator " + player.getName() + " left spectating via /lobby command");
+        }
+
         if (lobbyWorld != null) {
             resetPlayerState(player, GameMode.SURVIVAL);
             player.teleport(lobbyWorld.getSpawnLocation());
+        }
+    }
+
+    @Override
+    public void enterSpectatorMode(Player player) {
+        UUID uuid = player.getUniqueId();
+
+        // Check if player is in the active game
+        boolean wasInGame = tracker.getUsersInGame().contains(uuid);
+
+        if (wasInGame) {
+            strikeLightningWithoutFire(player.getLocation());
+            boolean hasItems = dropItemsInChest(player);
+            announceElimination(uuid, tracker, player.getLocation(), hasItems);
+
+            // Remove from active game
+            tracker.getUsersInGame().remove(uuid);
+            tracker.getCompletedUsers().remove(uuid);
+            tracker.getSkippedPlayers().remove(uuid);
+            tracker.getUserMaterialMap().remove(uuid);
+
+            // Add to spectators with game ID
+            tracker.addSpectator(uuid);
+            tracker.getSpectatorGameId().put(uuid, this.gameInstanceId);
+            player.setGameMode(GameMode.SPECTATOR);
+
+            player.sendMessage(prefixedMessage(
+                    Component.text("You are now spectating", NamedTextColor.YELLOW)));
+
+            BlockShuffle.logger.info("[Spectate] " + player.getName() + " forfeited and became spectator of game " + this.gameInstanceId);
+
+            // Check for auto-win (only 1 player left)
+            if (tracker.getUsersInGame().size() == 1) {
+                UUID winnerUUID = tracker.getUsersInGame().iterator().next();
+                tracker.getCompletedUsers().add(winnerUUID);
+                announceWinnersAndReset();
+                Bukkit.getScheduler().cancelTask(this.roundEndTask);
+            }
+            // Check if all remaining players completed their blocks
+            else if (tracker.getCompletedUsers().containsAll(tracker.getUsersInGame())) {
+                Bukkit.getScheduler().cancelTask(roundEndTask);
+                nextRound();
+            }
+        } else if (tracker.getSpectators().contains(uuid)) {
+            // Already spectating - send message
+            player.sendMessage(prefixedMessage(
+                    Component.text("You are already spectating", NamedTextColor.GRAY)));
+        } else {
+            tracker.addSpectator(uuid);
+            tracker.getSpectatorGameId().put(uuid, this.gameInstanceId);
+            player.setGameMode(GameMode.SPECTATOR);
+
+            // Teleport to game world
+            if (currentGameWorld != null) {
+                player.teleport(currentGameWorld.getSpawnLocation());
+            }
+
+            player.sendMessage(prefixedMessage(
+                    Component.text("You are now spectating", NamedTextColor.YELLOW)));
+
+            BlockShuffle.logger.info("[Spectate] " + player.getName() + " joined as spectator of game " + this.gameInstanceId);
         }
     }
 
@@ -396,7 +506,9 @@ public class ClassicBlockShuffle implements BSGameMode {
             UUID uuid = iterator.next();
             if (!tracker.getCompletedUsers().contains(uuid)) {
                 Player player = Bukkit.getPlayer(uuid);
+
                 if (player != null) {
+                    // Player is online - apply full elimination effects
                     player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_DEATH, 1.0f, 1.0f);
 
                     // Strike lightning at elimination location
@@ -409,8 +521,18 @@ public class ClassicBlockShuffle implements BSGameMode {
                     announceElimination(uuid, tracker, player.getLocation(), hasItems);
 
                     tracker.addSpectator(uuid);
+                    tracker.getSpectatorGameId().put(uuid, this.gameInstanceId);
                     player.setGameMode(GameMode.SPECTATOR);
+                } else {
+                    // Player is offline - still announce elimination and track as spectator
+                    announceElimination(uuid, tracker, null, false);
+
+                    tracker.addSpectator(uuid);
+                    tracker.getSpectatorGameId().put(uuid, this.gameInstanceId);
+
+                    BlockShuffle.logger.info("[Offline Elimination] " + uuid + " was eliminated while offline and will rejoin as spectator");
                 }
+
                 iterator.remove();
                 tracker.getUserMaterialMap().remove(uuid);
             }
@@ -462,25 +584,36 @@ public class ClassicBlockShuffle implements BSGameMode {
         Bukkit.getScheduler().runTaskLater(this.plugin, this::resetGame, 140L);
     }
 
-    private void scheduleLoganzaSound() {
-        // Check if loganza is in the game
-        Player loganza = Bukkit.getPlayer("loganza");
-        if (loganza != null && tracker.getUsersInGame().contains(loganza.getUniqueId())) {
+    private void scheduleCreeperSound() {
+        // Check if any creeper players are in the game
+        boolean hasCreeperPlayer = false;
+        for (UUID uuid : tracker.getUsersInGame()) {
+            if (creeperManager.isCreeper(uuid)) {
+                hasCreeperPlayer = true;
+                break;
+            }
+        }
+
+        if (hasCreeperPlayer) {
             // Random delay between 5-10 minutes (6000-12000 ticks)
             int minTicks = 6000; // 5 minutes
             int maxTicks = 12000; // 10 minutes
             int randomDelay = minTicks + random.nextInt(maxTicks - minTicks + 1);
 
-            this.loganzaSoundTask = Bukkit.getScheduler().scheduleSyncDelayedTask(this.plugin, () -> {
-                // Play sound and schedule next one
-                Player player = Bukkit.getPlayer("loganza");
-                if (player != null && player.isOnline() && inProgress) {
-                    player.playSound(player.getLocation(), Sound.ENTITY_CREEPER_PRIMED, 1.0f, 1.0f);
-                    BlockShuffle.logger.info("[Loganza Sound] Played creeper hiss for loganza");
+            this.creeperSoundTask = Bukkit.getScheduler().scheduleSyncDelayedTask(this.plugin, () -> {
+                // Play sound for all creeper players in the game
+                for (UUID uuid : tracker.getUsersInGame()) {
+                    if (creeperManager.isCreeper(uuid)) {
+                        Player player = Bukkit.getPlayer(uuid);
+                        if (player != null && player.isOnline() && inProgress) {
+                            player.playSound(player.getLocation(), Sound.ENTITY_CREEPER_PRIMED, 1.0f, 1.0f);
+                            BlockShuffle.logger.info("[Creeper Sound] Played creeper hiss for " + player.getName());
+                        }
+                    }
                 }
                 // Schedule next sound if game is still in progress
                 if (inProgress) {
-                    scheduleLoganzaSound();
+                    scheduleCreeperSound();
                 }
             }, randomDelay);
         }

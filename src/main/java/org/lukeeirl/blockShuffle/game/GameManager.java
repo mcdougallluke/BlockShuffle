@@ -7,6 +7,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.lukeeirl.blockShuffle.BlockShuffle;
 import org.lukeeirl.blockShuffle.ui.SettingsGUI;
+import org.lukeeirl.blockShuffle.util.CreeperManager;
 import org.lukeeirl.blockShuffle.util.SkipManager;
 import org.lukeeirl.blockShuffle.util.StatsManager;
 
@@ -15,7 +16,7 @@ import java.util.*;
 import static org.lukeeirl.blockShuffle.util.PlayerUtils.prefixedMessage;
 
 public class GameManager {
-    private final World lobbyWorld;;
+    private final World lobbyWorld;
     private final SettingsGUI settingsGUI;
     private final PlayerTracker tracker;
     private final ClassicBlockShuffle classicMode;
@@ -24,15 +25,15 @@ public class GameManager {
 
     private BSGameMode activeMode;
 
-    public GameManager(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI, SkipManager skipManager, StatsManager stats) {
+    public GameManager(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI, SkipManager skipManager, StatsManager stats, CreeperManager creeperManager) {
         this.settingsGUI = settingsGUI;
         this.tracker = tracker;
         WorldService worldService = new WorldService();
         this.lobbyWorld = Bukkit.getWorlds().getFirst();
         this.skipManager = skipManager;
 
-        this.classicMode = new ClassicBlockShuffle(tracker, plugin, settings, settingsGUI, worldService, lobbyWorld, skipManager, stats);
-        this.continuousMode = new ContinuousBlockShuffle(tracker, plugin, settings, settingsGUI, worldService, lobbyWorld);
+        this.classicMode = new ClassicBlockShuffle(tracker, plugin, settings, settingsGUI, worldService, lobbyWorld, skipManager, stats, creeperManager);
+        this.continuousMode = new ContinuousBlockShuffle(tracker, plugin, settings, settingsGUI, worldService, lobbyWorld, creeperManager);
     }
 
     public void startGame() {
@@ -73,6 +74,12 @@ public class GameManager {
             return activeMode.trySkip(uuid);
         }
         return false;
+    }
+
+    public void enterSpectatorMode(Player player) {
+        if (activeMode != null) {
+            activeMode.enterSpectatorMode(player);
+        }
     }
 
     public void readyAllPlayers() {

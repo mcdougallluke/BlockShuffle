@@ -53,8 +53,11 @@ public class PlayerListener implements Listener {
     @EventHandler
     public void onPlayerJoinEvent(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+        UUID uuid = player.getUniqueId();
 
-        if (gameManager.isInProgress()) {
+        // Always call playerJoined to handle cleanup of stale spectators
+        // even when no game is in progress
+        if (gameManager.isInProgress() || playerTracker.getSpectators().contains(uuid)) {
             gameManager.playerJoined(player);
         }
     }

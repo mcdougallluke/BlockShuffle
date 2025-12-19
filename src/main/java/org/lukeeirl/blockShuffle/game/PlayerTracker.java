@@ -11,6 +11,7 @@ public class PlayerTracker {
     private final Set<UUID> completedUsers = new HashSet<>();
     private final Set<UUID> spectators = new HashSet<>();
     private final Set<UUID> skippedPlayers = new HashSet<>();
+    private final Map<UUID, Long> spectatorGameId = new HashMap<>();
     private final Map<UUID, Material> userMaterialMap = new ConcurrentHashMap<>();
     private final Map<UUID, Long> playerEndTime = new HashMap<>();
     private final Map<UUID, Integer> playerRounds = new HashMap<>();
@@ -37,6 +38,7 @@ public class PlayerTracker {
     public Set<UUID> getCompletedUsers() { return completedUsers; }
     public Set<UUID> getSpectators() { return spectators; }
     public Set<UUID> getSkippedPlayers() { return skippedPlayers; }
+    public Map<UUID, Long> getSpectatorGameId() { return spectatorGameId; }
     public Map<UUID, Material> getUserMaterialMap() { return userMaterialMap; }
     public Map<UUID, Long> getPlayerEndTime() { return playerEndTime; }
     public Map<UUID, Integer> getPlayerRounds() { return playerRounds; }
@@ -49,6 +51,7 @@ public class PlayerTracker {
         completedUsers.clear();
         spectators.clear();
         skippedPlayers.clear();
+        spectatorGameId.clear();
         userMaterialMap.clear();
         playerEndTime.clear();
         playerRounds.clear();

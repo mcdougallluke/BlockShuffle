@@ -141,7 +141,18 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
                 break;
 
             case "spectate":
-                sender.sendMessage(Component.text("Command currently disabled", NamedTextColor.GRAY));
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(Component.text("This command can only be used by players.", NamedTextColor.RED));
+                    return true;
+                }
+
+                if (!gameManager.isInProgress()) {
+                    player.sendMessage(prefixedMessage(
+                            Component.text("There is no active game to spectate", NamedTextColor.RED)));
+                    return true;
+                }
+
+                gameManager.enterSpectatorMode(player);
                 break;
 
             case "readyall":

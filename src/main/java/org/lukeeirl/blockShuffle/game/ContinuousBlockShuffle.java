@@ -13,10 +13,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.Scoreboard;
 import org.lukeeirl.blockShuffle.BlockShuffle;
 import org.lukeeirl.blockShuffle.ui.SettingsGUI;
+import org.lukeeirl.blockShuffle.util.CreeperManager;
 
 import java.time.Duration;
 import java.util.*;
-import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 import static org.lukeeirl.blockShuffle.util.PlayerUtils.*;
@@ -29,6 +29,7 @@ public class ContinuousBlockShuffle implements BSGameMode {
     private final YamlConfiguration settings;
     private final SettingsGUI settingsGUI;
     private final WorldService worldService;
+    private final CreeperManager creeperManager;
     private final World lobbyWorld;
     private final Random random;
 
@@ -36,8 +37,9 @@ public class ContinuousBlockShuffle implements BSGameMode {
     private List<Material> materials;
     private World currentGameWorld;
     private boolean inProgress;
+    private long gameInstanceId;
     private boolean hasHandledWin = false;
-    private int loganzaSoundTask = -1;
+    private int creeperSoundTask = -1;
 
     private final Map<UUID, BossBar> playerBossBars = new HashMap<>();
     private static final long MAX_TIME_MILLIS = 15 * 60 * 1000; // 15 minutes
@@ -49,7 +51,8 @@ public class ContinuousBlockShuffle implements BSGameMode {
             YamlConfiguration settings,
             SettingsGUI settingsGUI,
             WorldService worldService,
-            World lobbyWorld
+            World lobbyWorld,
+            CreeperManager creeperManager
     ) {
         this.tracker = tracker;
         this.plugin = plugin;
@@ -57,6 +60,7 @@ public class ContinuousBlockShuffle implements BSGameMode {
         this.settingsGUI = settingsGUI;
         this.worldService = worldService;
         this.lobbyWorld = lobbyWorld;
+        this.creeperManager = creeperManager;
         this.random = new Random();
     }
 
@@ -65,10 +69,11 @@ public class ContinuousBlockShuffle implements BSGameMode {
         // Initialize game settings
         BlockShuffle.logger.info("[Game State] Continuous game started — setInProgress(true) from startGame()");
         this.inProgress = true;
+        this.gameInstanceId = System.currentTimeMillis();
         this.hasHandledWin = false;
 
         this.ticksInRound = settingsGUI.getRoundTimeTicks();
-        String baseWorldName = "blockshuffle_" + System.currentTimeMillis();
+        String baseWorldName = "blockshuffle_" + this.gameInstanceId;
         currentGameWorld = worldService.createLinkedWorlds(baseWorldName);
         String materialPath = "materials";
         this.materials = this.settings.getStringList(materialPath).stream().map(Material::getMaterial).collect(Collectors.toList());
@@ -101,18 +106,19 @@ public class ContinuousBlockShuffle implements BSGameMode {
             updateScoreboards();
         }, 0L, 20L);
 
-        this.scheduleLoganzaSound();
+        this.scheduleCreeperSound();
     }
 
     @Override
     public void resetGame() {
         BlockShuffle.logger.info("[Game State] Continuous game ended — setInProgress(false) from resetGame()");
         inProgress = false;
+        this.gameInstanceId = 0;
         this.hasHandledWin = false;
 
-        if (this.loganzaSoundTask != -1) {
-            Bukkit.getScheduler().cancelTask(this.loganzaSoundTask);
-            this.loganzaSoundTask = -1;
+        if (this.creeperSoundTask != -1) {
+            Bukkit.getScheduler().cancelTask(this.creeperSoundTask);
+            this.creeperSoundTask = -1;
         }
 
         // Send all players in the game back to lobby
@@ -124,12 +130,18 @@ public class ContinuousBlockShuffle implements BSGameMode {
                 player.teleport(lobbyWorld.getSpawnLocation());
             }
         }
+        // Collect offline spectators before clearing
+        Set<UUID> offlineSpectators = new HashSet<>();
         for (UUID uuid : tracker.getSpectators()) {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && lobbyWorld != null) {
+                // Online spectator - teleport to lobby
                 resetPlayerState(player, GameMode.ADVENTURE);
                 player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
                 player.teleport(lobbyWorld.getSpawnLocation());
+            } else {
+                // Offline spectator - preserve for cleanup on rejoin
+                offlineSpectators.add(uuid);
             }
         }
 
@@ -141,6 +153,12 @@ public class ContinuousBlockShuffle implements BSGameMode {
 
         tracker.clearAll();
         playerScoreboards.clear();
+
+        // Restore offline spectators to the tracking (they'll be cleaned up when they rejoin)
+        for (UUID uuid : offlineSpectators) {
+            tracker.addSpectator(uuid);
+            // spectatorGameId was cleared by clearAll(), which is fine - cleanup will work without it
+        }
 
         // Unload and delete the game world
         if (currentGameWorld != null) {
@@ -179,14 +197,13 @@ public class ContinuousBlockShuffle implements BSGameMode {
     public void playerJoined(Player player) {
         UUID uuid = player.getUniqueId();
 
+        // Handle active players
         if (tracker.getUsersInGame().contains(uuid)) {
-            // Re-add boss bar
             BossBar bossBar = playerBossBars.get(uuid);
             if (bossBar != null) {
                 bossBar.addPlayer(player);
             }
 
-            // Re-add scoreboard
             Scoreboard scoreboard = playerScoreboards.get(uuid);
             if (scoreboard != null) {
                 player.setScoreboard(scoreboard);
@@ -204,31 +221,110 @@ public class ContinuousBlockShuffle implements BSGameMode {
                                     .append(Component.text(blockName, NamedTextColor.GREEN, TextDecoration.BOLD))));
                 }
             }
+            return;
+        }
 
-        } else if (tracker.getSpectators().contains(uuid)) {
-            // Spectators also get their scoreboard back
-            Scoreboard scoreboard = playerScoreboards.get(uuid);
-            if (scoreboard != null) {
-                player.setScoreboard(scoreboard);
+        // Handle spectators
+        if (tracker.getSpectators().contains(uuid)) {
+            Long spectatorGameId = tracker.getSpectatorGameId().get(uuid);
+
+            if (spectatorGameId != null && spectatorGameId == this.gameInstanceId && this.inProgress) {
+                // Same game still running - restore spectator state
+                player.setGameMode(GameMode.SPECTATOR);
+
+                Scoreboard scoreboard = playerScoreboards.get(uuid);
+                if (scoreboard != null) {
+                    player.setScoreboard(scoreboard);
+                }
+
+                player.sendMessage(prefixedMessage(
+                        Component.text("You've rejoined as a spectator", NamedTextColor.YELLOW)));
+                BlockShuffle.logger.info("[Spectator Rejoin] " + player.getName() + " rejoined game " + this.gameInstanceId + " as spectator");
+            } else {
+                // Game ended - cleanup
+                tracker.getSpectators().remove(uuid);
+                tracker.getSpectatorGameId().remove(uuid);
+
+                if (lobbyWorld != null) {
+                    resetPlayerState(player, GameMode.ADVENTURE);
+                    player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+                    player.teleport(lobbyWorld.getSpawnLocation());
+                    player.sendMessage(prefixedMessage(
+                            Component.text("The game you were spectating has ended", NamedTextColor.GRAY)));
+                }
+                BlockShuffle.logger.info("[Spectator Cleanup] " + player.getName() + " cleaned up (was watching game " + spectatorGameId + ", current is " + this.gameInstanceId + ")");
             }
-            if (lobbyWorld != null) {
-                player.teleport(lobbyWorld.getSpawnLocation());
-                player.setGameMode(GameMode.ADVENTURE);
-            }
-        } else {
-            // Not in game or spectators, just send to lobby
-            if (lobbyWorld != null) {
-                player.teleport(lobbyWorld.getSpawnLocation());
-                player.setGameMode(GameMode.ADVENTURE);
-            }
+            return;
+        }
+
+        // Not in game or spectators - send to lobby
+        if (lobbyWorld != null) {
+            player.teleport(lobbyWorld.getSpawnLocation());
+            player.setGameMode(GameMode.ADVENTURE);
         }
     }
 
     @Override
     public void sendPlayerToLobby(Player player) {
-        // send a temp message to the player for now
-        player.sendMessage(prefixedMessage(
-                Component.text("You have been sent to the lobby", NamedTextColor.RED)));
+        UUID uuid = player.getUniqueId();
+
+        boolean wasInGame = tracker.getUsersInGame().remove(uuid);
+        boolean wasSpectator = tracker.getSpectators().remove(uuid);
+        tracker.getSpectatorGameId().remove(uuid);
+        tracker.getUserMaterialMap().remove(uuid);
+        tracker.getPlayerEndTime().remove(uuid);
+        tracker.getPlayerRounds().remove(uuid);
+
+        if (wasInGame) {
+            // Strike lightning and drop items
+            strikeLightningWithoutFire(player.getLocation());
+            boolean hasItems = dropItemsInChest(player);
+            announceElimination(uuid, tracker, player.getLocation(), hasItems);
+
+            // Remove boss bar
+            BossBar bossBar = playerBossBars.remove(uuid);
+            if (bossBar != null) {
+                bossBar.removeAll();
+            }
+
+            // Remove from scoreboard tracking
+            playerScoreboards.remove(uuid);
+
+            // Check for auto-win
+            if (!hasHandledWin && tracker.getUsersInGame().size() == 1) {
+                hasHandledWin = true;
+                UUID winner = tracker.getUsersInGame().iterator().next();
+                Player winnerPlayer = Bukkit.getPlayer(winner);
+                if (winnerPlayer != null) {
+                    Bukkit.broadcast(prefixedMessage(
+                            Component.text(winnerPlayer.getName(), NamedTextColor.WHITE)
+                                    .append(Component.text(" won the game!", NamedTextColor.GREEN))));
+                    winnerPlayer.playSound(winnerPlayer.getLocation(), Sound.ENTITY_ENDER_DRAGON_DEATH, 1.0f, 1.0f);
+
+                    for (int i = 0; i < 16; i++) {
+                        int delay = i * 5;
+                        Bukkit.getScheduler().runTaskLater(plugin, () ->
+                                launchFireworkAt(winnerPlayer.getLocation()), delay);
+                    }
+                }
+                Bukkit.getScheduler().runTaskLater(plugin, this::resetGame, 140L);
+            }
+        }
+
+        if (wasSpectator) {
+            // Remove scoreboard
+            playerScoreboards.remove(uuid);
+
+            player.sendMessage(prefixedMessage(
+                    Component.text("You have left spectator mode", NamedTextColor.GRAY)));
+            BlockShuffle.logger.info("[Lobby] Spectator " + player.getName() + " left spectating via /lobby command");
+        }
+
+        if (lobbyWorld != null) {
+            resetPlayerState(player, GameMode.ADVENTURE);
+            player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+            player.teleport(lobbyWorld.getSpawnLocation());
+        }
     }
 
     @Override
@@ -269,6 +365,105 @@ public class ContinuousBlockShuffle implements BSGameMode {
         return this.currentGameWorld;
     }
 
+    @Override
+    public long getGameInstanceId() {
+        return this.gameInstanceId;
+    }
+
+    @Override
+    public void enterSpectatorMode(Player player) {
+        UUID uuid = player.getUniqueId();
+
+        boolean wasInGame = tracker.getUsersInGame().contains(uuid);
+
+        if (wasInGame) {
+            // Active player forfeiting - apply FULL elimination effects
+
+            strikeLightningWithoutFire(player.getLocation());
+            boolean hasItems = dropItemsInChest(player);
+
+            // Announce elimination (same as regular elimination)
+            announceElimination(uuid, tracker, player.getLocation(), hasItems);
+
+            // Remove from game tracking
+            tracker.getUsersInGame().remove(uuid);
+            tracker.getUserMaterialMap().remove(uuid);
+            tracker.getPlayerEndTime().remove(uuid);
+            tracker.getPlayerRounds().remove(uuid);
+
+            // Remove boss bar
+            BossBar bossBar = playerBossBars.remove(uuid);
+            if (bossBar != null) {
+                bossBar.removeAll();
+            }
+
+            // Add to spectators
+            tracker.addSpectator(uuid);
+            tracker.getSpectatorGameId().put(uuid, this.gameInstanceId);
+
+            // Keep scoreboard so they can watch
+            Scoreboard scoreboard = playerScoreboards.get(uuid);
+            if (scoreboard != null) {
+                player.setScoreboard(scoreboard);
+            }
+
+            player.setGameMode(GameMode.SPECTATOR);
+            player.sendMessage(prefixedMessage(
+                    Component.text("You are now spectating", NamedTextColor.YELLOW)));
+
+            BlockShuffle.logger.info("[Spectate] " + player.getName() + " forfeited and became spectator of game " + this.gameInstanceId);
+
+            // Check for auto-win
+            if (!hasHandledWin && tracker.getUsersInGame().size() == 1) {
+                hasHandledWin = true;
+                UUID winner = tracker.getUsersInGame().iterator().next();
+                Player winnerPlayer = Bukkit.getPlayer(winner);
+                if (winnerPlayer != null) {
+                    Bukkit.broadcast(prefixedMessage(
+                            Component.text(winnerPlayer.getName(), NamedTextColor.WHITE)
+                                    .append(Component.text(" won the game!", NamedTextColor.GREEN))));
+                    winnerPlayer.playSound(winnerPlayer.getLocation(), Sound.ENTITY_ENDER_DRAGON_DEATH, 1.0f, 1.0f);
+
+                    for (int i = 0; i < 16; i++) {
+                        int delay = i * 5;
+                        Bukkit.getScheduler().runTaskLater(plugin, () ->
+                                launchFireworkAt(winnerPlayer.getLocation()), delay);
+                    }
+                }
+                Bukkit.getScheduler().runTaskLater(plugin, this::resetGame, 140L);
+            }
+        } else if (tracker.getSpectators().contains(uuid)) {
+            player.sendMessage(prefixedMessage(
+                    Component.text("You are already spectating", NamedTextColor.GRAY)));
+        } else {
+            // New spectator joining
+            tracker.addSpectator(uuid);
+            tracker.getSpectatorGameId().put(uuid, this.gameInstanceId);
+
+            // Give them the scoreboard so they can see player status
+            Scoreboard spectatorBoard = Bukkit.getScoreboardManager().getNewScoreboard();
+            // Copy the scoreboard from existing players if available
+            if (!playerScoreboards.isEmpty()) {
+                UUID firstPlayer = playerScoreboards.keySet().iterator().next();
+                spectatorBoard = playerScoreboards.get(firstPlayer);
+            }
+            playerScoreboards.put(uuid, spectatorBoard);
+            player.setScoreboard(spectatorBoard);
+
+            player.setGameMode(GameMode.SPECTATOR);
+
+            // Teleport to game world
+            if (currentGameWorld != null) {
+                player.teleport(currentGameWorld.getSpawnLocation());
+            }
+
+            player.sendMessage(prefixedMessage(
+                    Component.text("You are now spectating", NamedTextColor.YELLOW)));
+
+            BlockShuffle.logger.info("[Spectate] " + player.getName() + " joined as spectator of game " + this.gameInstanceId);
+        }
+    }
+
     private void checkForTimeouts() {
         long now = System.currentTimeMillis();
 
@@ -292,7 +487,9 @@ public class ContinuousBlockShuffle implements BSGameMode {
         if (!toEliminate.isEmpty()) {
             for (UUID uuid : toEliminate) {
                 Player player = Bukkit.getPlayer(uuid);
+
                 if (player != null) {
+                    // Player is online - apply full elimination effects
                     // Strike lightning at elimination location
                     strikeLightningWithoutFire(player.getLocation());
 
@@ -303,9 +500,20 @@ public class ContinuousBlockShuffle implements BSGameMode {
                     announceElimination(uuid, tracker, player.getLocation(), hasItems);
 
                     tracker.addSpectator(uuid);
+                    tracker.getSpectatorGameId().put(uuid, this.gameInstanceId);
                     tracker.getUsersInGame().remove(uuid);
                     tracker.getUserMaterialMap().remove(uuid);
                     player.setGameMode(GameMode.SPECTATOR);
+                } else {
+                    // Player is offline - still announce elimination and track as spectator
+                    announceElimination(uuid, tracker, null, false);
+
+                    tracker.addSpectator(uuid);
+                    tracker.getSpectatorGameId().put(uuid, this.gameInstanceId);
+                    tracker.getUsersInGame().remove(uuid);
+                    tracker.getUserMaterialMap().remove(uuid);
+
+                    BlockShuffle.logger.info("[Offline Elimination] " + uuid + " was eliminated while offline and will rejoin as spectator");
                 }
             }
         }
@@ -454,25 +662,36 @@ public class ContinuousBlockShuffle implements BSGameMode {
         }
     }
 
-    private void scheduleLoganzaSound() {
-        // Check if loganza is in the game
-        Player loganza = Bukkit.getPlayer("loganza");
-        if (loganza != null && tracker.getUsersInGame().contains(loganza.getUniqueId())) {
+    private void scheduleCreeperSound() {
+        // Check if any creeper players are in the game
+        boolean hasCreeperPlayer = false;
+        for (UUID uuid : tracker.getUsersInGame()) {
+            if (creeperManager.isCreeper(uuid)) {
+                hasCreeperPlayer = true;
+                break;
+            }
+        }
+
+        if (hasCreeperPlayer) {
             // Random delay between 5-10 minutes (6000-12000 ticks)
             int minTicks = 6000; // 5 minutes
             int maxTicks = 12000; // 10 minutes
             int randomDelay = minTicks + random.nextInt(maxTicks - minTicks + 1);
 
-            this.loganzaSoundTask = Bukkit.getScheduler().scheduleSyncDelayedTask(this.plugin, () -> {
-                // Play sound and schedule next one
-                Player player = Bukkit.getPlayer("loganza");
-                if (player != null && player.isOnline() && inProgress) {
-                    player.playSound(player.getLocation(), Sound.ENTITY_CREEPER_PRIMED, 1.0f, 1.0f);
-                    BlockShuffle.logger.info("[Loganza Sound] Played creeper hiss for loganza");
+            this.creeperSoundTask = Bukkit.getScheduler().scheduleSyncDelayedTask(this.plugin, () -> {
+                // Play sound for all creeper players in the game
+                for (UUID uuid : tracker.getUsersInGame()) {
+                    if (creeperManager.isCreeper(uuid)) {
+                        Player player = Bukkit.getPlayer(uuid);
+                        if (player != null && player.isOnline() && inProgress) {
+                            player.playSound(player.getLocation(), Sound.ENTITY_CREEPER_PRIMED, 1.0f, 1.0f);
+                            BlockShuffle.logger.info("[Creeper Sound] Played creeper hiss for " + player.getName());
+                        }
+                    }
                 }
                 // Schedule next sound if game is still in progress
                 if (inProgress) {
-                    scheduleLoganzaSound();
+                    scheduleCreeperSound();
                 }
             }, randomDelay);
         }

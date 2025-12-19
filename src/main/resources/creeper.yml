@@ -1,0 +1,4 @@
+# Creeper sound effect player list
+# Players in this list will randomly hear creeper sounds during games
+# Managed via the /creeper command (ops only)
+creeper-players: []

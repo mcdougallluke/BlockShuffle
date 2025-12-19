@@ -1,5 +1,5 @@
 name: BlockShuffle
-version: '1.1.0'
+version: '1.1.1'
 main: org.lukeeirl.blockShuffle.BlockShuffle
 api-version: '1.21'
 authors:
@@ -34,6 +34,7 @@ commands:
     description: View your game stats
     usage: /stats [player]
     permission: blockshuffle.command.stats
+  creeper:
 
 permissions:
   # Base permission for /blockshuffle; grants access to the command but not subcommands

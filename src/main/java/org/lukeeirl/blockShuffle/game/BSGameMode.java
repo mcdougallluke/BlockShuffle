@@ -11,7 +11,9 @@ public interface BSGameMode {
     void playerStandingOnBlock(Player player);
     void playerJoined(Player player);
     void sendPlayerToLobby(Player player);
+    void enterSpectatorMode(Player player);
     boolean trySkip(UUID uuid);
     boolean isInProgress();
     World getCurrentGameWorld();
+    long getGameInstanceId();
 }
