@@ -1,5 +1,6 @@
 package org.lukeeirl.blockShuffle.commands;
 
+import org.bukkit.Sound;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -32,6 +33,7 @@ public class LobbyCommand implements CommandExecutor {
         }
 
         gameManager.sendPlayerToLobby(player);
+        player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.5f, 1.0f);
         return true;
     }
 }

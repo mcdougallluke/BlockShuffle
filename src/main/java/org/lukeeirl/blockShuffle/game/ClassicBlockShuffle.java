@@ -565,7 +565,7 @@ public class ClassicBlockShuffle implements BSGameMode {
                 Bukkit.broadcast(prefixedMessage(
                         Component.text(player.getName() + " ", NamedTextColor.WHITE)
                                 .append(Component.text("won the game!", NamedTextColor.GREEN))));
-                player.playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_DEATH, 1.0f, 1.0f);
+                player.playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_DEATH, 0.5f, 1.0f);
                 stats.recordWin(uuid);
                 stats.save(uuid);
             }
