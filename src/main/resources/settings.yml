@@ -2,6 +2,7 @@ roundTimeSeconds: 300
 pvpEnabled: false
 decreaseTime: true
 gameMode: Classic
+blocksToWin: 5
 
 materials:
   - AIR

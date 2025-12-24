@@ -165,6 +165,25 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage(Component.text("All players have been marked as ready.", NamedTextColor.GREEN));
                 break;
 
+            case "newblock":
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(Component.text("This command can only be used by players.", NamedTextColor.RED));
+                    return true;
+                }
+
+                if (!gameManager.isInProgress()) {
+                    player.sendMessage(prefixedMessage(
+                            Component.text("You can only request a new block during an active game.", NamedTextColor.RED)));
+                    return true;
+                }
+
+                boolean success = gameManager.tryGetNewBlock(player.getUniqueId());
+                if (!success) {
+                    player.sendMessage(prefixedMessage(
+                            Component.text("You cannot request a new block right now. Wait 5 minutes on your current block to receive the option.", NamedTextColor.RED)));
+                }
+                break;
+
             default:
                 sender.sendMessage(Component.text("Unknown subcommand. Try: /blockshuffle <ready|start|stop|spectate|readyall>", NamedTextColor.YELLOW));
                 break;
@@ -181,7 +200,7 @@ public class BlockShuffleCommand implements CommandExecutor, TabCompleter {
             String[] args
     ) {
         if (args.length == 1) {
-            List<String> subcommands = Arrays.asList("ready", "settings", "start", "stop", "spectate", "readyall", "broadcast");
+            List<String> subcommands = Arrays.asList("ready", "settings", "start", "stop", "spectate", "readyall", "broadcast", "newblock");
 
             return subcommands.stream()
                     .filter(cmd -> cmd.startsWith(args[0].toLowerCase()))

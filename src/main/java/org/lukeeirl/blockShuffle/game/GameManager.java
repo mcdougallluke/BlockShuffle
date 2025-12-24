@@ -21,7 +21,7 @@ public class GameManager {
     private final PlayerTracker tracker;
     private final ClassicBlockShuffle classicMode;
     private final ContinuousBlockShuffle continuousMode;
-    private final SkipManager skipManager;
+    private final FirstToBlockShuffle firstToMode;
 
     private BSGameMode activeMode;
 
@@ -30,15 +30,25 @@ public class GameManager {
         this.tracker = tracker;
         WorldService worldService = new WorldService();
         this.lobbyWorld = Bukkit.getWorlds().getFirst();
-        this.skipManager = skipManager;
 
         this.classicMode = new ClassicBlockShuffle(tracker, plugin, settings, settingsGUI, worldService, lobbyWorld, skipManager, stats, creeperManager);
         this.continuousMode = new ContinuousBlockShuffle(tracker, plugin, settings, settingsGUI, worldService, lobbyWorld, creeperManager);
+        this.firstToMode = new FirstToBlockShuffle(tracker, plugin, settings, settingsGUI, worldService, lobbyWorld, creeperManager, stats);
+
+        if (settingsGUI.isContinuousMode()) {
+            this.activeMode = continuousMode;
+        } else if (settingsGUI.isFirstToMode()) {
+            this.activeMode = firstToMode;
+        } else {
+            this.activeMode = classicMode;
+        }
     }
 
     public void startGame() {
         if (settingsGUI.isContinuousMode()) {
             this.activeMode = continuousMode;
+        } else if (settingsGUI.isFirstToMode()) {
+            this.activeMode = firstToMode;
         } else {
             this.activeMode = classicMode;
         }
@@ -115,5 +125,12 @@ public class GameManager {
 
     public boolean isPvpEnabled() {
         return settingsGUI.isPvpEnabled();
+    }
+
+    public boolean tryGetNewBlock(UUID uuid) {
+        if (activeMode != null && activeMode instanceof FirstToBlockShuffle) {
+            return ((FirstToBlockShuffle) activeMode).tryGetNewBlock(uuid);
+        }
+        return false;
     }
 }
