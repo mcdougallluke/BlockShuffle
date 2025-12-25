@@ -1,7 +1,7 @@
 package org.lukeeirl.blockShuffle.game;
 
 import org.bukkit.Bukkit;
-import org.bukkit.GameRule;
+import org.bukkit.GameRules;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
 
@@ -34,8 +34,8 @@ public class WorldService {
                 Objects.requireNonNull(Bukkit.getWorld(baseName + "_the_end"))
         )) {
             if (world != null) {
-                world.setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true);
-                world.setGameRule(GameRule.DO_INSOMNIA, false);
+                world.setGameRule(GameRules.IMMEDIATE_RESPAWN, true);
+                world.setGameRule(GameRules.SPAWN_PHANTOMS, false);
                 world.setViewDistance(32);
                 world.setSimulationDistance(32);
             }
