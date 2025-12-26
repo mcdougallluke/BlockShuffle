@@ -6,6 +6,8 @@ import org.lukeeirl.blockShuffle.commands.*;
 import org.lukeeirl.blockShuffle.events.PlayerListener;
 import org.lukeeirl.blockShuffle.game.GameManager;
 import org.lukeeirl.blockShuffle.game.PlayerTracker;
+import org.lukeeirl.blockShuffle.game.WorldPoolService;
+import org.lukeeirl.blockShuffle.game.WorldService;
 import org.lukeeirl.blockShuffle.ui.SettingsGUI;
 import org.lukeeirl.blockShuffle.util.CreeperManager;
 import org.lukeeirl.blockShuffle.util.SkipManager;
@@ -19,6 +21,7 @@ public final class BlockShuffle extends JavaPlugin {
     private File settingsFile;
     private File skipsFile;
     private File creeperFile;
+    private WorldPoolService worldPoolService;
 
     public static Logger logger;
 
@@ -41,7 +44,12 @@ public final class BlockShuffle extends JavaPlugin {
         StatsManager statsManager = new StatsManager(this);
         SkipManager skipManager = new SkipManager(skipsFile, skipsConfig, statsManager);
         CreeperManager creeperManager = new CreeperManager(creeperFile, creeperConfig);
-        GameManager gameManager = new GameManager(playerTracker, this, settings, settingsGUI, skipManager, statsManager, creeperManager);
+
+        // Initialize world pool service
+        WorldService worldService = new WorldService();
+        this.worldPoolService = initializeWorldPool(settings, worldService);
+
+        GameManager gameManager = new GameManager(playerTracker, this, settings, settingsGUI, skipManager, statsManager, creeperManager, worldPoolService);
         PlayerListener playerListener = new PlayerListener(this, playerTracker, gameManager);
         Objects.requireNonNull(this.getCommand("blockshuffle")).setExecutor(new BlockShuffleCommand(playerTracker, gameManager, settingsGUI));
         Objects.requireNonNull(this.getCommand("skipblock")).setExecutor(new SkipBlockCommand(gameManager, playerTracker));
@@ -59,7 +67,43 @@ public final class BlockShuffle extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        // Plugin shutdown logic
+        // Shutdown world pool service
+        if (this.worldPoolService != null) {
+            this.worldPoolService.shutdown();
+        }
+    }
+
+    private WorldPoolService initializeWorldPool(YamlConfiguration settings, WorldService worldService) {
+        // Check if world pool is enabled
+        boolean enabled = settings.getBoolean("worldPool.enabled", true);
+
+        if (!enabled) {
+            logger.info("World pool is disabled in settings.yml");
+            return null;
+        }
+
+        // Load world pool configuration
+        int poolSize = settings.getInt("worldPool.poolSize", 3);
+        int chunkPreloadRadius = settings.getInt("worldPool.chunkPreloadRadius", 16);
+        int maxConcurrentChunkLoads = settings.getInt("worldPool.maxConcurrentChunkLoads", 50);
+
+        logger.info("World pool enabled with settings:");
+        logger.info("  Pool size: " + poolSize);
+        logger.info("  Chunk preload radius: " + chunkPreloadRadius);
+        logger.info("  Max concurrent chunk loads: " + maxConcurrentChunkLoads);
+
+        WorldPoolService poolService = new WorldPoolService(
+            this,
+            worldService,
+            poolSize,
+            chunkPreloadRadius,
+            maxConcurrentChunkLoads
+        );
+
+        // Initialize pool asynchronously (staggered world creation)
+        poolService.initialize();
+
+        return poolService;
     }
 
     private void createSettingsFile() {

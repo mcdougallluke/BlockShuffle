@@ -25,15 +25,15 @@ public class GameManager {
 
     private BSGameMode activeMode;
 
-    public GameManager(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI, SkipManager skipManager, StatsManager stats, CreeperManager creeperManager) {
+    public GameManager(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI, SkipManager skipManager, StatsManager stats, CreeperManager creeperManager, WorldPoolService worldPoolService) {
         this.settingsGUI = settingsGUI;
         this.tracker = tracker;
         WorldService worldService = new WorldService();
         this.lobbyWorld = Bukkit.getWorlds().getFirst();
 
-        this.classicMode = new ClassicBlockShuffle(tracker, plugin, settings, settingsGUI, worldService, lobbyWorld, skipManager, stats, creeperManager);
-        this.continuousMode = new ContinuousBlockShuffle(tracker, plugin, settings, settingsGUI, worldService, lobbyWorld, creeperManager);
-        this.firstToMode = new FirstToBlockShuffle(tracker, plugin, settings, settingsGUI, worldService, lobbyWorld, creeperManager, stats);
+        this.classicMode = new ClassicBlockShuffle(tracker, plugin, settings, settingsGUI, worldService, lobbyWorld, skipManager, stats, creeperManager, worldPoolService);
+        this.continuousMode = new ContinuousBlockShuffle(tracker, plugin, settings, settingsGUI, worldService, lobbyWorld, creeperManager, worldPoolService);
+        this.firstToMode = new FirstToBlockShuffle(tracker, plugin, settings, settingsGUI, worldService, lobbyWorld, creeperManager, stats, worldPoolService);
 
         if (settingsGUI.isContinuousMode()) {
             this.activeMode = continuousMode;

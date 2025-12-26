@@ -29,6 +29,7 @@ public class FirstToBlockShuffle implements BSGameMode {
     private final YamlConfiguration settings;
     private final SettingsGUI settingsGUI;
     private final WorldService worldService;
+    private final WorldPoolService worldPoolService;
     private final CreeperManager creeperManager;
     private final StatsManager stats;
     private final World lobbyWorld;
@@ -36,6 +37,7 @@ public class FirstToBlockShuffle implements BSGameMode {
 
     private List<Material> materials;
     private World currentGameWorld;
+    private WorldPoolService.PooledWorld currentPooledWorld;
     private boolean inProgress;
     private long gameInstanceId;
     private boolean hasHandledWin = false;
@@ -57,13 +59,15 @@ public class FirstToBlockShuffle implements BSGameMode {
             WorldService worldService,
             World lobbyWorld,
             CreeperManager creeperManager,
-            StatsManager stats
+            StatsManager stats,
+            WorldPoolService worldPoolService
     ) {
         this.tracker = tracker;
         this.plugin = plugin;
         this.settings = settings;
         this.settingsGUI = settingsGUI;
         this.worldService = worldService;
+        this.worldPoolService = worldPoolService;
         this.lobbyWorld = lobbyWorld;
         this.creeperManager = creeperManager;
         this.stats = stats;
@@ -72,18 +76,29 @@ public class FirstToBlockShuffle implements BSGameMode {
 
     @Override
     public void startGame() {
-        // Initialize game settings
         BlockShuffle.logger.info("[Game State] FirstTo game started — setInProgress(true) from startGame()");
         this.inProgress = true;
         this.gameInstanceId = System.currentTimeMillis();
         this.hasHandledWin = false;
-        this.gameStartTime = System.currentTimeMillis();
         this.blocksToWin = settingsGUI.getBlocksToWin();
+        this.gameStartTime = System.currentTimeMillis();
 
-        String baseWorldName = "blockshuffle_" + this.gameInstanceId;
-        currentGameWorld = worldService.createLinkedWorlds(baseWorldName);
         String materialPath = "materials";
         this.materials = this.settings.getStringList(materialPath).stream().map(Material::getMaterial).collect(Collectors.toList());
+
+        // Try to get world from pool first
+        if (worldPoolService != null) {
+            currentPooledWorld = worldPoolService.getReadyWorld();
+        }
+
+        if (currentPooledWorld != null) {
+            currentGameWorld = currentPooledWorld.getOverworld();
+            plugin.getLogger().info("[World Pool] Using pre-generated world for FirstTo mode");
+        } else {
+            String baseWorldName = "blockshuffle_" + this.gameInstanceId;
+            currentGameWorld = worldService.createLinkedWorlds(baseWorldName);
+            plugin.getLogger().warning("[World Pool] No pooled world available, created new world");
+        }
 
         for (UUID uuid : tracker.getReadyPlayers()) {
             Player player = Bukkit.getPlayer(uuid);
@@ -175,8 +190,14 @@ public class FirstToBlockShuffle implements BSGameMode {
             tracker.addSpectator(uuid);
         }
 
-        // Unload and delete the game world
-        if (currentGameWorld != null) {
+        // Delete used world (worlds are never recycled - each game gets fresh seed)
+        if (currentPooledWorld != null && worldPoolService != null) {
+            plugin.getLogger().info("[World Pool] Deleting used world: " + currentPooledWorld.getBaseName());
+            worldPoolService.deleteUsedWorld(currentPooledWorld);
+            currentPooledWorld = null;
+            currentGameWorld = null;
+        } else if (currentGameWorld != null) {
+            plugin.getLogger().info("[World Cleanup] Deleting non-pooled world: " + currentGameWorld.getName());
             Bukkit.unloadWorld(currentGameWorld, false);
             worldService.deleteWorld(currentGameWorld);
             currentGameWorld = null;
@@ -396,8 +417,6 @@ public class FirstToBlockShuffle implements BSGameMode {
         boolean wasInGame = tracker.getUsersInGame().remove(uuid);
         boolean wasSpectator = tracker.getSpectators().remove(uuid);
         tracker.getSpectatorGameId().remove(uuid);
-        tracker.getUserMaterialMap().remove(uuid);
-        tracker.getPlayerRounds().remove(uuid);
 
         if (wasInGame) {
             // Strike lightning and drop items
@@ -405,7 +424,9 @@ public class FirstToBlockShuffle implements BSGameMode {
             boolean hasItems = dropItemsInChest(player);
             announceElimination(uuid, tracker, player.getLocation(), hasItems);
 
-            // Remove from scoreboard tracking
+            // Remove from tracking AFTER announcement
+            tracker.getUserMaterialMap().remove(uuid);
+            tracker.getPlayerRounds().remove(uuid);
             playerScoreboards.remove(uuid);
 
             // Check for auto-win

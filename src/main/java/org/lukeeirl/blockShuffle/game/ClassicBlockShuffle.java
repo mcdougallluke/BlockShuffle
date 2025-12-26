@@ -30,6 +30,7 @@ public class ClassicBlockShuffle implements BSGameMode {
     private final YamlConfiguration settings;
     private final SettingsGUI settingsGUI;
     private final WorldService worldService;
+    private final WorldPoolService worldPoolService;
     private final SkipManager skipManager;
     private final StatsManager stats;
     private final CreeperManager creeperManager;
@@ -43,18 +44,21 @@ public class ClassicBlockShuffle implements BSGameMode {
     private int playerUITask;
     private int roundEndTask;
     private BossBar bossBar;
+    private BossBar countdownBar;
     private long roundStartTime;
     private World currentGameWorld;
+    private WorldPoolService.PooledWorld currentPooledWorld;
     private boolean inProgress;
     private long gameInstanceId;
     private int creeperSoundTask = -1;
 
-    public ClassicBlockShuffle(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI, WorldService worldService, World lobbyWorld, SkipManager skipManager, StatsManager stats, CreeperManager creeperManager) {
+    public ClassicBlockShuffle(PlayerTracker tracker, BlockShuffle plugin, YamlConfiguration settings, SettingsGUI settingsGUI, WorldService worldService, World lobbyWorld, SkipManager skipManager, StatsManager stats, CreeperManager creeperManager, WorldPoolService worldPoolService) {
         this.tracker = tracker;
         this.plugin = plugin;
         this.settings = settings;
         this.settingsGUI = settingsGUI;
         this.worldService = worldService;
+        this.worldPoolService = worldPoolService;
         this.lobbyWorld = lobbyWorld;
         this.skipManager = skipManager;
         this.stats = stats;
@@ -67,8 +71,28 @@ public class ClassicBlockShuffle implements BSGameMode {
         this.inProgress = true;
         this.gameInstanceId = System.currentTimeMillis();
         this.ticksInRound = settingsGUI.getRoundTimeTicks();
-        String baseWorldName = "blockshuffle_" + this.gameInstanceId;
-        currentGameWorld = worldService.createLinkedWorlds(baseWorldName);
+
+        // Try to get world from pool first
+        if (worldPoolService != null) {
+            currentPooledWorld = worldPoolService.getReadyWorld();
+        }
+
+        if (currentPooledWorld != null) {
+            // Pool world available - instant start!
+            currentGameWorld = currentPooledWorld.getOverworld();
+            plugin.getLogger().info("[World Pool] Using pre-generated world: " + currentGameWorld.getName());
+            startGameWithWorld();
+        } else {
+            // No pool world available - show countdown and create world
+            plugin.getLogger().warning("[World Pool] No worlds available in pool, creating new world with countdown...");
+            startGameWithCountdown();
+        }
+    }
+
+    /**
+     * Start game immediately with an available world (from pool)
+     */
+    private void startGameWithWorld() {
         String materialPath = "materials";
         this.materials = this.settings.getStringList(materialPath).stream().map(Material::getMaterial).collect(Collectors.toList());
 
@@ -88,13 +112,108 @@ public class ClassicBlockShuffle implements BSGameMode {
         this.scheduleCreeperSound();
     }
 
+    /**
+     * Start game with countdown while creating a new world (fallback when pool is empty)
+     */
+    private void startGameWithCountdown() {
+        // Create countdown boss bar
+        countdownBar = Bukkit.createBossBar(
+            "Preparing game world...",
+            BarColor.YELLOW,
+            BarStyle.SEGMENTED_10
+        );
+
+        // Add ready players to countdown bar
+        for (UUID uuid : tracker.getReadyPlayers()) {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null && player.isOnline()) {
+                countdownBar.addPlayer(player);
+                player.showTitle(Title.title(
+                    Component.text("Generating World", NamedTextColor.GOLD),
+                    Component.text("Please wait...", NamedTextColor.YELLOW),
+                    Title.Times.times(Duration.ofMillis(500), Duration.ofSeconds(3), Duration.ofMillis(500))
+                ));
+            }
+        }
+
+        // Schedule world creation with progress updates
+        new org.bukkit.scheduler.BukkitRunnable() {
+            int ticks = 0;
+            World world = null;
+
+            @Override
+            public void run() {
+                ticks++;
+
+                if (ticks == 20) { // 1 second - Create world
+                    countdownBar.setTitle("Creating world dimensions...");
+                    countdownBar.setProgress(0.3);
+
+                    String baseWorldName = "blockshuffle_" + gameInstanceId;
+                    world = worldService.createLinkedWorlds(baseWorldName);
+                    currentGameWorld = world;
+
+                    plugin.getLogger().info("[World Creation] World created: " + baseWorldName);
+                }
+                else if (ticks == 60) { // 3 seconds - Load materials
+                    countdownBar.setTitle("Loading game materials...");
+                    countdownBar.setProgress(0.6);
+
+                    String materialPath = "materials";
+                    materials = settings.getStringList(materialPath).stream()
+                        .map(Material::getMaterial)
+                        .collect(Collectors.toList());
+                }
+                else if (ticks == 80) { // 4 seconds - Teleport players
+                    countdownBar.setTitle("Teleporting players...");
+                    countdownBar.setProgress(0.8);
+
+                    for (UUID uuid : tracker.getReadyPlayers()) {
+                        stats.recordPlayed(uuid);
+                        Player player = Bukkit.getPlayer(uuid);
+                        if (player != null && player.isOnline()) {
+                            resetPlayerState(player, GameMode.SURVIVAL);
+                            player.teleport(currentGameWorld.getSpawnLocation());
+                            tracker.addInGame(uuid);
+                        }
+                    }
+                    stats.saveAll();
+                }
+                else if (ticks >= 100) { // 5 seconds - Start game
+                    countdownBar.setTitle("Starting game!");
+                    countdownBar.setProgress(1.0);
+
+                    // Start game systems
+                    bossBar = createBossBar();
+                    startNewRound();
+                    playerUITask = Bukkit.getScheduler().scheduleSyncRepeatingTask(plugin,
+                        ClassicBlockShuffle.this::refreshPlayerUI, 0, 20);
+                    scheduleCreeperSound();
+
+                    plugin.getLogger().info("[World Creation] Game started with new world");
+
+                    // Remove countdown bar after 2 seconds
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        countdownBar.removeAll();
+                        countdownBar = null;
+                    }, 40L);
+
+                    this.cancel();
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 1L);
+    }
+
     @Override
     public void resetGame() {
         this.roundNumber = 0;
         inProgress = false;
         this.gameInstanceId = 0;
         BlockShuffle.logger.info("[Game State] Game ended — setInProgress(false) from resetGame()");
-        this.bossBar.removeAll();
+
+        if (this.bossBar != null) {
+            this.bossBar.removeAll();
+        }
         Bukkit.getScheduler().cancelTask(this.roundEndTask);
         Bukkit.getScheduler().cancelTask(this.playerUITask);
         if (this.creeperSoundTask != -1) {
@@ -128,7 +247,16 @@ public class ClassicBlockShuffle implements BSGameMode {
             tracker.addSpectator(uuid);
         }
 
-        if (currentGameWorld != null) {
+        // Delete used world (worlds are never recycled - each game gets fresh seed)
+        if (currentPooledWorld != null && worldPoolService != null) {
+            // Delete world from pool (it was pre-generated with chunks loaded)
+            plugin.getLogger().info("[World Pool] Deleting used world: " + currentPooledWorld.getBaseName());
+            worldPoolService.deleteUsedWorld(currentPooledWorld);
+            currentPooledWorld = null;
+            currentGameWorld = null;
+        } else if (currentGameWorld != null) {
+            // Delete non-pooled world (created during countdown fallback)
+            plugin.getLogger().info("[World Cleanup] Deleting non-pooled world: " + currentGameWorld.getName());
             Bukkit.unloadWorld(currentGameWorld, false);
             worldService.deleteWorld(currentGameWorld);
             currentGameWorld = null;

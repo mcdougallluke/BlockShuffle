@@ -29,6 +29,7 @@ public class ContinuousBlockShuffle implements BSGameMode {
     private final YamlConfiguration settings;
     private final SettingsGUI settingsGUI;
     private final WorldService worldService;
+    private final WorldPoolService worldPoolService;
     private final CreeperManager creeperManager;
     private final World lobbyWorld;
     private final Random random;
@@ -36,6 +37,7 @@ public class ContinuousBlockShuffle implements BSGameMode {
     private int ticksInRound = 6000;
     private List<Material> materials;
     private World currentGameWorld;
+    private WorldPoolService.PooledWorld currentPooledWorld;
     private boolean inProgress;
     private long gameInstanceId;
     private boolean hasHandledWin = false;
@@ -52,13 +54,15 @@ public class ContinuousBlockShuffle implements BSGameMode {
             SettingsGUI settingsGUI,
             WorldService worldService,
             World lobbyWorld,
-            CreeperManager creeperManager
+            CreeperManager creeperManager,
+            WorldPoolService worldPoolService
     ) {
         this.tracker = tracker;
         this.plugin = plugin;
         this.settings = settings;
         this.settingsGUI = settingsGUI;
         this.worldService = worldService;
+        this.worldPoolService = worldPoolService;
         this.lobbyWorld = lobbyWorld;
         this.creeperManager = creeperManager;
         this.random = new Random();
@@ -73,8 +77,21 @@ public class ContinuousBlockShuffle implements BSGameMode {
         this.hasHandledWin = false;
 
         this.ticksInRound = settingsGUI.getRoundTimeTicks();
-        String baseWorldName = "blockshuffle_" + this.gameInstanceId;
-        currentGameWorld = worldService.createLinkedWorlds(baseWorldName);
+
+        // Try to get world from pool first
+        if (worldPoolService != null) {
+            currentPooledWorld = worldPoolService.getReadyWorld();
+        }
+
+        if (currentPooledWorld != null) {
+            currentGameWorld = currentPooledWorld.getOverworld();
+            plugin.getLogger().info("[World Pool] Using pre-generated world for Continuous mode");
+        } else {
+            String baseWorldName = "blockshuffle_" + this.gameInstanceId;
+            currentGameWorld = worldService.createLinkedWorlds(baseWorldName);
+            plugin.getLogger().warning("[World Pool] No pooled world available, created new world");
+        }
+
         String materialPath = "materials";
         this.materials = this.settings.getStringList(materialPath).stream().map(Material::getMaterial).collect(Collectors.toList());
 
@@ -160,8 +177,14 @@ public class ContinuousBlockShuffle implements BSGameMode {
             // spectatorGameId was cleared by clearAll(), which is fine - cleanup will work without it
         }
 
-        // Unload and delete the game world
-        if (currentGameWorld != null) {
+        // Delete used world (worlds are never recycled - each game gets fresh seed)
+        if (currentPooledWorld != null && worldPoolService != null) {
+            plugin.getLogger().info("[World Pool] Deleting used world: " + currentPooledWorld.getBaseName());
+            worldPoolService.deleteUsedWorld(currentPooledWorld);
+            currentPooledWorld = null;
+            currentGameWorld = null;
+        } else if (currentGameWorld != null) {
+            plugin.getLogger().info("[World Cleanup] Deleting non-pooled world: " + currentGameWorld.getName());
             Bukkit.unloadWorld(currentGameWorld, false);
             worldService.deleteWorld(currentGameWorld);
             currentGameWorld = null;

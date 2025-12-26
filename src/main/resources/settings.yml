@@ -4,6 +4,13 @@ decreaseTime: true
 gameMode: Classic
 blocksToWin: 5
 
+# World Pool Settings (for instant game starts)
+worldPool:
+  enabled: true
+  poolSize: 3  # Number of pre-generated worlds to keep ready
+  chunkPreloadRadius: 16  # Chunks to pre-load around spawn (16 = 256 block radius)
+  maxConcurrentChunkLoads: 50  # Max chunks loading at once (prevents server overload)
+
 materials:
   - AIR
   - ACACIA_LEAVES
