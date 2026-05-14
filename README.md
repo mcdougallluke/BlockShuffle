@@ -3,7 +3,7 @@
 A multiplayer **Block Shuffle** game mode plugin for Minecraft 1.21.11 built with the Spigot API. Players must race to find and stand on a randomly assigned block before time runs out — or be eliminated!
 
 > 🔧 Built with Java 21 and Gradle.  
-> 🎮 Supports dynamic worlds, round tracking, player readiness, block skipping, admin settings GUI, broadcast messaging, and more.
+> 🎮 Supports dynamic worlds, round tracking, player readiness, skipping, game settings GUI, and more.
 
 ---
 
