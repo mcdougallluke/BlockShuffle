@@ -1,10 +1,10 @@
 name: BlockShuffle
 version: '1.1.1'
 main: org.lukeeirl.blockShuffle.BlockShuffle
-api-version: '1.21'
+api-version: '26.2'
 authors:
   - lukeeirl
-description: A Block Shuffle game for Minecraft 1.21.11
+description: A Block Shuffle game for Minecraft 26.2
 website: lukemcd.dev
 
 commands:

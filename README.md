@@ -1,8 +1,8 @@
-# 🧱 Block Shuffle (Minecraft 1.21+)
+# 🧱 Block Shuffle (Minecraft 26.2+)
 
-A multiplayer **Block Shuffle** game mode plugin for Minecraft 1.21.11 built with the Spigot API. Players must race to find and stand on a randomly assigned block before time runs out — or be eliminated!
+A multiplayer **Block Shuffle** game mode plugin for Minecraft 26.2 built with the Paper API. Players must race to find and stand on a randomly assigned block before time runs out — or be eliminated!
 
-> 🔧 Built with Java 21 and Gradle.  
+> 🔧 Built with Java 25 and Gradle.  
 > 🎮 Supports dynamic worlds, round tracking, player readiness, skipping, game settings GUI, and more.
 
 ---
