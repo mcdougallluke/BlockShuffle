@@ -1,82 +1,95 @@
-# 🧱 Block Shuffle (Minecraft 26.2+)
+# Block Shuffle
 
-A multiplayer **Block Shuffle** game mode plugin for Minecraft 26.2 built with the Paper API. Players must race to find and stand on a randomly assigned block before time runs out — or be eliminated!
+Block Shuffle is a Paper plugin for a Minecraft minigame: everyone gets assigned a
+random block, you race to find and stand on it before the timer runs out, and
+whoever doesn't make it gets eliminated.
 
-> 🔧 Built with Java 25 and Gradle.  
-> 🎮 Supports dynamic worlds, round tracking, player readiness, skipping, game settings GUI, and more.
+Runs on Minecraft **26.2** (Paper API), built with **Java 25** and Gradle.
 
----
+## Game modes
 
-## 📦 Features
+Set in `settings.yml` or from the in-game settings GUI (`/blockshuffle settings`).
 
-- ✅ Round-based block hunting game
-- 🧍 Players stand on a randomly assigned block within a configurable timer
-- 🏁 Auto-eliminates players who fail
-- ⏳ Visual timer via boss bar
-- 🔀 Skip your block for free once per game (`/skipblock`)
-- 🧑‍🤝‍🧑 Player ready-up system (`/blockshuffle ready`)
-- 🌍 Dynamic world generation for each match
-- ⚙️ Admin settings GUI (`/blockshuffle settings`)
-- 📄 Configurable block list in `settings.yml`
+- **Classic**: everyone shares one round timer. Find your block before it
+  hits zero or you're eliminated. Last player standing wins.
+- **Continuous**: no shared clock. Each player gets their own timer and a
+  fresh block the moment they finish the last one, so faster players just
+  keep going instead of waiting on the round.
+- **FirstTo**: a race to a target number of blocks (`blocksToWin`). First
+  player to hit the count wins.
 
----
+Every match spins up a brand-new Overworld/Nether/End set so nothing carries
+over between games, and gets torn down after.
 
-## 🧪 Commands
+## Commands
 
-### `/blockshuffle` subcommands
+### `/blockshuffle` (`/bs`)
 
-| Subcommand   | Description                            | Permission                       |
-|--------------|----------------------------------------|----------------------------------|
-| `ready`      | Toggle your ready status               | `blockshuffle.command.base`      |
-| `start`      | Start the game                         | `blockshuffle.command.start`     |
-| `stop`       | Stop the current game                  | `blockshuffle.admin.stop`        |
-| `settings`   | Open the admin settings GUI            | `blockshuffle.admin.settings`    |
-| `readyall`   | Mark all online players as ready       | `blockshuffle.admin.readyall`    |
-| `broadcast`  | Broadcast a MiniMessage to everyone    | `blockshuffle.admin.broadcast`   |
-| `spectate`   | (Disabled)                             | `blockshuffle.command.base`      |
+| Subcommand  | What it does                                              | Permission                    |
+|-------------|-----------------------------------------------------------|--------------------------------|
+| `ready`     | Toggle your ready status                                  | `blockshuffle.command.base`    |
+| `start`     | Start the game once enough players are ready              | `blockshuffle.command.start` |
+| `stop`      | End the current game                                      | `blockshuffle.admin.stop`      |
+| `settings`  | Open the settings GUI                                     | `blockshuffle.admin.settings` |
+| `readyall`  | Force-ready everyone online                               | `blockshuffle.admin.readyall`  |
+| `broadcast` | Send a MiniMessage-formatted server broadcast             | `blockshuffle.admin.broadcast` |
+| `spectate`  | Watch a game in progress                                  | `blockshuffle.command.base`    |
+| `newblock`  | Request a new block if you've been stuck on yours 5+ minutes | `blockshuffle.command.base` |
 
-### Other commands
+### Standalone
 
-| Command                          | Description                         | Permission                         |
-|----------------------------------|-------------------------------------|------------------------------------|
-| `/skipblock`                     | Skip your block once per game       | `blockshuffle.command.skip`        |
-| `/lobby`                         | Return to the lobby                 | `blockshuffle.command.lobby`       |
-| `/stats [player]`                | View your or another’s stats        | `blockshuffle.command.stats`       |
-| `/giveskips <player> <amount>`   | Grant skips to a player             | `blockshuffle.command.giveskips`   |
-| `/testmsg <minimessage>`         | Test MiniMessage formatting         | `blockshuffle.command.testmsg`     |
+| Command | What it does | Permission |
+|---|---|---|
+| `/skipblock` (`/skip`) | Skip your current block, once per game | `blockshuffle.command.skip` |
+| `/lobby` (`/l`) | Leave the game and return to the lobby | `blockshuffle.command.lobby` |
+| `/stats [player]` | Show games played/won, blocks found, skips bought/remaining | `blockshuffle.command.stats` |
+| `/giveskips <player> <amount>` | Grant extra skips | `blockshuffle.command.giveskips` |
 
----
+## Permissions
 
-## 🔐 Permissions
+| Node | Default | Notes |
+|---|:---:|---|
+| `blockshuffle.command.base` | true | Base `/blockshuffle` access |
+| `blockshuffle.command.start` | true | `/blockshuffle start` |
+| `blockshuffle.command.skip` | true | `/skipblock` |
+| `blockshuffle.command.lobby` | true | `/lobby` |
+| `blockshuffle.command.stats` | true | `/stats` |
+| `blockshuffle.command.giveskips` | false | `/giveskips` — grant explicitly |
+| `blockshuffle.command.testmsg` | op | `/testmsg` |
+| `blockshuffle.admin.stop` | op | `/blockshuffle stop` |
+| `blockshuffle.admin.settings` | op | `/blockshuffle settings` |
+| `blockshuffle.admin.readyall` | op | `/blockshuffle readyall` |
+| `blockshuffle.admin.broadcast` | op | `/blockshuffle broadcast` |
+| `blockshuffle.admin.*` | op | All of the above admin nodes |
 
-| Node                                 | Default | Notes                                      |
-|--------------------------------------|:-------:|--------------------------------------------|
-| `blockshuffle.command.base`          |  true   | Required for any `/blockshuffle` usage      |
-| `blockshuffle.command.start`         |  true   | `/blockshuffle start`                       |
-| `blockshuffle.command.skip`          |  true   | `/skipblock`                                |
-| `blockshuffle.command.lobby`         |  true   | `/lobby`                                    |
-| `blockshuffle.command.stats`         |  true   | `/stats`                                    |
-| `blockshuffle.command.giveskips`     |  false  | `/giveskips` (must be granted explicitly)   |
-| `blockshuffle.command.testmsg`       |   op    | `/testmsg`                                  |
-| `blockshuffle.admin.stop`            |   op    | `/blockshuffle stop`                        |
-| `blockshuffle.admin.settings`        |   op    | `/blockshuffle settings`                    |
-| `blockshuffle.admin.readyall`        |   op    | `/blockshuffle readyall`                    |
-| `blockshuffle.admin.broadcast`       |   op    | `/blockshuffle broadcast`                   |
-| `blockshuffle.admin.*`               |   op    | All admin subcommands                       |
+## Configuration
 
----
-
-## ⚙️ Configuration
-
-Edit `src/main/resources/settings.yml`:
+`src/main/resources/settings.yml` — most of this is also editable live through
+`/blockshuffle settings`:
 
 ```yaml
-roundTimeSeconds: 300      # Round length in seconds
-pvpEnabled: false          # Enable/disable PvP
-decreaseTime: true         # Decrease timer each round
-gameMode: Classic          # "Classic" or "Continuous"
+roundTimeSeconds: 300     # Length of a round, in seconds
+pvpEnabled: false         # Allow players to fight each other
+decreaseTime: true        # Shorten the timer each round (Classic mode)
+gameMode: Classic         # Classic | Continuous | FirstTo
+blocksToWin: 5            # Target for FirstTo mode
+
 materials:
   - AIR
   - STONE
   - DIRT
-  # …and your other block choices
+  # ...the full pool ships with ~250 blocks; trim or extend it to taste
+```
+
+## Building
+
+```bash
+./gradlew build
+```
+
+Drop the resulting jar from `build/libs/` into your server's `plugins/`
+folder.
+
+---
+
+Built by [lukemcd](https://lukemcd.dev).
