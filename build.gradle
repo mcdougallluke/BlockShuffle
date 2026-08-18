@@ -4,7 +4,19 @@ plugins {
 }
 
 group = 'org.lukeeirl'
-version = project.hasProperty('releaseVersion') ? project.releaseVersion : '1.1.1-local'
+// Release builds get their version from the git tag via -PreleaseVersion (see .github/workflows/release.yml).
+// Local builds derive it from the most recent tag so the fallback never goes stale.
+def gitDescribe = providers.exec {
+    commandLine 'git', 'describe', '--tags', '--abbrev=0'
+    ignoreExitValue = true
+}
+
+def localVersion = {
+    def tag = gitDescribe.standardOutput.asText.get().trim()
+    (tag ? tag.replaceFirst(/^v/, '') : '0.0.0') + '-local'
+}
+
+version = project.hasProperty('releaseVersion') ? project.releaseVersion : localVersion()
 
 repositories {
     mavenCentral()

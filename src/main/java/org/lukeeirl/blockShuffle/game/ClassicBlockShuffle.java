@@ -15,6 +15,7 @@ import org.lukeeirl.blockShuffle.ui.SettingsGUI;
 import org.lukeeirl.blockShuffle.util.CreeperManager;
 import org.lukeeirl.blockShuffle.util.SkipManager;
 import org.lukeeirl.blockShuffle.util.StatsManager;
+import org.lukeeirl.blockShuffle.util.TaskRegistry;
 
 import java.time.Duration;
 import java.util.*;
@@ -40,7 +41,7 @@ public class ClassicBlockShuffle implements BSGameMode {
     private int roundNumber = 0;
 
     private List<Material> materials;
-    private int playerUITask;
+    private final TaskRegistry tasks = new TaskRegistry();
     private int roundEndTask;
     private BossBar bossBar;
     private long roundStartTime;
@@ -64,6 +65,7 @@ public class ClassicBlockShuffle implements BSGameMode {
 
     @Override
     public void startGame() {
+        tasks.cancelAll();
         this.inProgress = true;
         this.gameInstanceId = System.currentTimeMillis();
         this.ticksInRound = settingsGUI.getRoundTimeTicks();
@@ -84,7 +86,7 @@ public class ClassicBlockShuffle implements BSGameMode {
         stats.saveAll();
         this.bossBar = this.createBossBar();
         this.startNewRound();
-        this.playerUITask = Bukkit.getScheduler().scheduleSyncRepeatingTask(this.plugin, this::refreshPlayerUI, 0, 20);
+        tasks.track(Bukkit.getScheduler().runTaskTimer(this.plugin, this::refreshPlayerUI, 0L, 20L));
         this.scheduleCreeperSound();
     }
 
@@ -96,7 +98,7 @@ public class ClassicBlockShuffle implements BSGameMode {
         BlockShuffle.logger.info("[Game State] Game ended — setInProgress(false) from resetGame()");
         this.bossBar.removeAll();
         Bukkit.getScheduler().cancelTask(this.roundEndTask);
-        Bukkit.getScheduler().cancelTask(this.playerUITask);
+        tasks.cancelAll();
         if (this.creeperSoundTask != -1) {
             Bukkit.getScheduler().cancelTask(this.creeperSoundTask);
             this.creeperSoundTask = -1;

@@ -14,6 +14,7 @@ import org.bukkit.scoreboard.Scoreboard;
 import org.lukeeirl.blockShuffle.BlockShuffle;
 import org.lukeeirl.blockShuffle.ui.SettingsGUI;
 import org.lukeeirl.blockShuffle.util.CreeperManager;
+import org.lukeeirl.blockShuffle.util.TaskRegistry;
 
 import java.time.Duration;
 import java.util.*;
@@ -41,6 +42,7 @@ public class ContinuousBlockShuffle implements BSGameMode {
     private boolean hasHandledWin = false;
     private int creeperSoundTask = -1;
 
+    private final TaskRegistry tasks = new TaskRegistry();
     private final Map<UUID, BossBar> playerBossBars = new HashMap<>();
     private static final long MAX_TIME_MILLIS = 15 * 60 * 1000; // 15 minutes
     private final Map<UUID, Scoreboard> playerScoreboards = new HashMap<>();
@@ -68,6 +70,7 @@ public class ContinuousBlockShuffle implements BSGameMode {
     public void startGame() {
         // Initialize game settings
         BlockShuffle.logger.info("[Game State] Continuous game started — setInProgress(true) from startGame()");
+        tasks.cancelAll();
         this.inProgress = true;
         this.gameInstanceId = System.currentTimeMillis();
         this.hasHandledWin = false;
@@ -99,12 +102,10 @@ public class ContinuousBlockShuffle implements BSGameMode {
         }
         setupScoreboards();
 
-        Bukkit.getScheduler().runTaskTimer(plugin, this::checkForTimeouts, 0L, 20L);
-
-        Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+        tasks.track(Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             checkForTimeouts();
             updateScoreboards();
-        }, 0L, 20L);
+        }, 0L, 20L));
 
         this.scheduleCreeperSound();
     }
@@ -115,6 +116,8 @@ public class ContinuousBlockShuffle implements BSGameMode {
         inProgress = false;
         this.gameInstanceId = 0;
         this.hasHandledWin = false;
+
+        tasks.cancelAll();
 
         if (this.creeperSoundTask != -1) {
             Bukkit.getScheduler().cancelTask(this.creeperSoundTask);
