@@ -15,6 +15,7 @@ import org.lukeeirl.blockShuffle.BlockShuffle;
 import org.lukeeirl.blockShuffle.ui.SettingsGUI;
 import org.lukeeirl.blockShuffle.util.CreeperManager;
 import org.lukeeirl.blockShuffle.util.StatsManager;
+import org.lukeeirl.blockShuffle.util.TaskRegistry;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -41,6 +42,7 @@ public class FirstToBlockShuffle implements BSGameMode {
     private boolean hasHandledWin = false;
     private int creeperSoundTask = -1;
 
+    private final TaskRegistry tasks = new TaskRegistry();
     private BossBar sharedBossBar;
     private long gameStartTime;
     private int blocksToWin;
@@ -74,6 +76,7 @@ public class FirstToBlockShuffle implements BSGameMode {
     public void startGame() {
         // Initialize game settings
         BlockShuffle.logger.info("[Game State] FirstTo game started — setInProgress(true) from startGame()");
+        tasks.cancelAll();
         this.inProgress = true;
         this.gameInstanceId = System.currentTimeMillis();
         this.hasHandledWin = false;
@@ -114,11 +117,11 @@ public class FirstToBlockShuffle implements BSGameMode {
         setupScoreboards();
 
         // Schedule updates every second (20 ticks)
-        Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+        tasks.track(Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             updateElapsedTimeBossBar();
             updateScoreboards();
             checkBlockReminders();
-        }, 0L, 20L);
+        }, 0L, 20L));
 
         this.scheduleCreeperSound();
     }
@@ -129,6 +132,8 @@ public class FirstToBlockShuffle implements BSGameMode {
         inProgress = false;
         this.gameInstanceId = 0;
         this.hasHandledWin = false;
+
+        tasks.cancelAll();
 
         if (this.creeperSoundTask != -1) {
             Bukkit.getScheduler().cancelTask(this.creeperSoundTask);
